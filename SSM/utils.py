@@ -6,8 +6,8 @@ import torch
 
 
 SUMMARY_INTERVAL = 169
-TRAIN_INTERVAL = 1352 * 2  # 43264 / 16
-TEST_INTERVAL = 8 * 2  # 256 / 16
+TRAIN_INTERVAL = 1352 # 43264 / 32
+TEST_INTERVAL = 8 # 256 / 32
 
 
 def data_loop(epoch, loader, model, device, writer, train=False, plot=True):

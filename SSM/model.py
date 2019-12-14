@@ -30,16 +30,16 @@ class SSM(Model):
         for distribution in distributions:
             init_weights(distribution)
 
-        step_loss = CrossEntropy(self.encoder_s, self.decoder_s).expectation(
-            self.encoder_s0
-        ) + KullbackLeibler(self.encoder_s, self.prior_s).expectation(self.encoder_s0)
+        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+            self.encoder_s, self.prior_s
+        )
         _loss = IterativeLoss(
             step_loss,
             max_iter=T,
             series_var=["x", "h", "a"],  # x0を時間方向に複製して転地?
             update_value={"s": "s_prev"},
         )
-        loss = _loss.expectation(self.rnn_s).mean()
+        loss = _loss.expectation(self.encoder_s0).expectation(self.rnn_s).mean()
 
         super(SSM, self).__init__(
             loss,
