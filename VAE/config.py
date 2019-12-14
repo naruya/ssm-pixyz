@@ -10,7 +10,7 @@ def get_args(jupyter=False):
     parser.add_argument('--T', type=int, default=30)
     parser.add_argument('--z_dim', type=int, default=128)
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--path', type=str, default="~/share/data/tensorflow_datasets/")
+    parser.add_argument('--path', type=str, default="~/tensorflow_datasets/")
     if not jupyter:
         args = parser.parse_args()
     else:
