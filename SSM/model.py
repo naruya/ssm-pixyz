@@ -17,7 +17,7 @@ class SSM(Model):
         self.prior_s = Prior_S(s_dim, a_dim).to(device)
         self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
         self.decoder_s = Decoder_S(s_dim).to(device)
-        self.rnn_s = EncoderRNN_S(h_dim, device).to(device)
+        self.rnn_s = EncoderRNN_S(h_dim).to(device)
 
         distributions = [
             self.encoder_s0,

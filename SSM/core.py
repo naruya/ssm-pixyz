@@ -56,7 +56,7 @@ class Decoder_S(Bernoulli):
 
 
 class EncoderRNN_S(Deterministic):
-    def __init__(self, h_dim, device):
+    def __init__(self, h_dim):
         super(EncoderRNN_S, self).__init__(cond_var=["x"], var=["h"])
         self.h_dim = h_dim
         self.conv = nn.Sequential(
@@ -80,8 +80,8 @@ class EncoderRNN_S(Deterministic):
             nn.ReLU(),
         )
         self.rnn = nn.LSTM(h_dim, h_dim)
-        self.h0 = nn.Parameter(torch.zeros(1, 1, h_dim)).to(device)
-        self.c0 = nn.Parameter(torch.zeros(1, 1, h_dim)).to(device)
+        self.h0 = nn.Parameter(torch.zeros(1, 1, h_dim))
+        self.c0 = nn.Parameter(torch.zeros(1, 1, h_dim))
 
     def forward(self, x):
         _T = x.size(0)
