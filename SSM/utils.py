@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 
 
-SUMMARY_INTERVAL = 169
+SUMMARY_INTERVAL = 13 # 169 # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352 # 43264 / 32
 TEST_INTERVAL = 8 # 256 / 32
 
@@ -29,14 +29,16 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
         # feed_dict = {"x": x, "s_prev": s_prev, "a": a}
         feed_dict = {"x0": x[0], "x": x, "a": a}
         if train:
-            mean_loss += model.train(feed_dict).item() * _B
+            loss = model.train(feed_dict).item() * _B
         else:
-            mean_loss += model.test(feed_dict).item() * _B
+            loss = model.test(feed_dict).item() * _B
+        mean_loss += loss
 
         if train and itr % SUMMARY_INTERVAL == 0 and plot:
+            writer.add_scalar('loss/itr_train', loss, itr)
             path = "logs/figure/train_epoch{:04d}-itr{:04d}.png".format(epoch, itr)
             plot_video(
-                model.sample_video_from_latent_s(batch), writer, epoch, path=path
+                model.sample_video_from_latent_s(batch), writer, itr, path, train=True,
             )
         if train and itr % TRAIN_INTERVAL == 0:
             flag_end_epoch = True
@@ -45,37 +47,41 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
 
     if not train and plot:
         path = "logs/figure/test_epoch{:04d}-itr{:04d}.png".format(epoch, itr)
-        plot_video(model.sample_video_from_latent_s(batch), writer, epoch, path=path)
+        plot_video(
+            model.sample_video_from_latent_s(batch), writer, itr, path, train=False
+        )
 
     mean_loss /= loader.num_examples
     if train:
+        writer.add_scalar('loss/train', mean_loss, epoch)
         print("Epoch: {} Train loss: {:.4f}".format(epoch, mean_loss))
     else:
+        writer.add_scalar('loss/test', mean_loss, epoch)
         print("Epoch: {} Test loss: {:.4f}".format(epoch, mean_loss))
 
     return mean_loss
 
 
-def plot_video(video, writer, epoch, path=None, show=False):
+def plot_video(video, writer, itr, path, show=False, train=True):
     # 32, 30, 3, 64, 64
     if isinstance(video, np.ndarray):
-        pass
+        assert False
     elif isinstance(video, torch.Tensor):
         if writer:
-            writer.add_video("video", video, epoch)  # NTCHW
+            if train:
+                writer.add_video("video/train", video, itr)  # NTCHW
+            else:
+                writer.add_video("video/test", video, itr)  # NTCHW
         video = (
-            video.cpu()
-            .detach()
-            .numpy()
-            .astype(np.float)
-            .transpose(0, 1, 3, 4, 2)[0][-10:]
+            video.cpu().detach().numpy().astype(np.float).transpose(0, 1, 3, 4, 2)[0]
         )
 
-    plt.figure(figsize=(10, 1))
-    for i in range(10):
-        plt.subplot(1, 10, i + 1)
+    plt.figure(figsize=(10, 3))
+    for i in range(30):
+        plt.subplot(3, 10, i + 1)
         plt.imshow(video[i])
     if path:
         plt.savefig(path)
     if show:
         plt.show()
+    plt.close()
