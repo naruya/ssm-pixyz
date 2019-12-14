@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 def init_weights(distribution):
-    print("---- init weights ----")
+    # print("---- init weights ----")
     for m in distribution.modules():
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
@@ -23,9 +23,9 @@ def init_weights(distribution):
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
         else:
-            print("  ", type(m))
+            # print("  ", type(m))
             continue
-        print("ok", type(m))
+        # print("ok", type(m))
 
 class Conv2dLSTMCell(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1):

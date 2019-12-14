@@ -32,24 +32,17 @@ class PushDataLoader:
         )
         self.ds = self.ds.prefetch(tf.data.experimental.AUTOTUNE).repeat(epochs)
         self.ds = tfds.as_numpy(self.ds)
-        self.n = 0
+        self.itr = 0
 
     def __iter__(self):
         return self
 
     def __next__(self):
+        self.itr += 1
         batch = next(self.ds)
-
         # TODO: use state or not
-
-        video, action = batch["video"], batch["action"]
-        self.n += len(video)
-        if self.n >= (self.num_examples):
-            self.n = self.n - self.num_examples
-            end_epoch = True
-        else:
-            end_epoch = False
-        return torch.from_numpy(video), torch.from_numpy(action), end_epoch
+        video, action = batch["video"], batch["action"]        
+        return torch.from_numpy(video), torch.from_numpy(action), self.itr
 
     def __len__(self):
         return self.length
