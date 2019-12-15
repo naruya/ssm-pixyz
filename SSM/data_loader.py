@@ -41,7 +41,7 @@ class PushDataLoader:
         self.itr += 1
         batch = next(self.ds)
         # TODO: use state or not
-        video, action = batch["video"], batch["action"]        
+        video, action = batch["video"], batch["action"]
         return torch.from_numpy(video), torch.from_numpy(action), self.itr
 
     def __len__(self):

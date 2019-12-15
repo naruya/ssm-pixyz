@@ -19,7 +19,7 @@ class SSM(Model):
         self.decoder_s = Decoder_S(s_dim).to(device)
         self.rnn_s = EncoderRNN_S(h_dim).to(device)
 
-        distributions = [
+        self.distributions = [
             self.encoder_s0,
             self.rnn_s,
             self.encoder_s,
@@ -27,7 +27,7 @@ class SSM(Model):
             self.prior_s,
         ]
 
-        for distribution in distributions:
+        for distribution in self.distributions:
             init_weights(distribution)
 
         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
@@ -43,7 +43,7 @@ class SSM(Model):
 
         super(SSM, self).__init__(
             loss,
-            distributions=distributions,
+            distributions=self.distributions,
             optimizer=optim.RMSprop,
             optimizer_params={"lr": 5e-4},
             clip_grad_value=10,
@@ -54,6 +54,12 @@ class SSM(Model):
 
     def sample_video_from_latent_s(self, loader):
         return _sample_video_from_latent_s(self, loader)
+
+    def save(self):
+        _save(self)
+
+    def load(self):
+        _load(self)
 
 
 def _sample_video_from_latent_s(model, batch):
@@ -73,4 +79,27 @@ def _sample_video_from_latent_s(model, batch):
         s_prev = samples["s"]  # TODO 一行前にする
         video.append(frame[None, :])
     video = torch.cat(video, dim=0).transpose(0, 1)
-    return video
+    x = x.transpose(0, 1)
+    return torch.cat((video, x), dim=0)
+
+
+def _save(model, file):
+    pass
+
+
+#     torch.save(p.state_dict(), "./logs/p/" + prefix + ".pt")
+#     torch.save(q.state_dict(), "./logs/q/" + prefix + ".pt")
+#     torch.save(model.optimizer.state_dict(), "./logs/opt/" + prefix + ".pt")
+
+
+def _load(file, device):
+    pass
+
+
+#     if not prefix[-3:] == ".pt":
+#         prefix += ".pt"
+#     p.load_state_dict(torch.load("./logs/p/" + path, map_location=device))
+#     q.load_state_dict(torch.load("./logs/q/" + path, map_location=device))
+#     model.optimizer.load_state_dict(
+#         torch.load("./logs/opt/" + path, map_location=device)
+#     )
