@@ -10,14 +10,12 @@ from data_loader import PushDataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 args = get_args()
-h_dim, s_dim, a_dim = args.h_dim, args.s_dim, args.a_dim
-B, T = args.B, args.T
 device = "cuda"
 
-model = SSM(h_dim, s_dim, a_dim, T, device)
+model = SSM(args, device)
 
-train_loader = PushDataLoader(args.path, "train", B, args.epochs)
-test_loader = PushDataLoader(args.path, "test", B, args.epochs)
+train_loader = PushDataLoader("train", args)
+test_loader = PushDataLoader("test", args)
 
 writer = SummaryWriter()
 
@@ -49,14 +47,14 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
         if train and itr % PLOT_VIDEO_INTERVAL == 0 and plot:
-            video = model.sample_video_from_latent_s(batch)            
+            video = model.sample_video_from_latent_s(batch)
             writer.add_video("video/train", video, itr)
         if train and itr % TRAIN_INTERVAL == 0:
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
 
-    mean_loss /= loader.num_examples
+    mean_loss /= loader.N
     if train:
         writer.add_scalar("loss/train", mean_loss, epoch)
     else:

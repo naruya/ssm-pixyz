@@ -7,11 +7,11 @@ from torch_utils import init_weights
 
 
 class SSM(Model):
-    def __init__(self, h_dim, s_dim, a_dim, T, device):
+    def __init__(self, args, device):
         self.device = device
-        self.h_dim = h_dim
-        self.s_dim = s_dim
-        self.a_dim = a_dim
+        h_dim = args.h_dim
+        s_dim = args.s_dim
+        a_dim = args.a_dim
 
         self.encoder_s0 = Inference_S0(h_dim, s_dim).to(device)
         self.prior_s = Prior_S(s_dim, a_dim).to(device)
@@ -35,8 +35,8 @@ class SSM(Model):
         )
         _loss = IterativeLoss(
             step_loss,
-            max_iter=T,
-            series_var=["x", "h", "a"],  # x0を時間方向に複製して転地?
+            max_iter=args.T,
+            series_var=["x", "h", "a"],
             update_value={"s": "s_prev"},
         )
         loss = _loss.expectation(self.encoder_s0).expectation(self.rnn_s).mean()
@@ -70,7 +70,6 @@ def _sample_video_from_latent_s(model, batch):
     x = x.to(device).transpose(0, 1)
     _T, _B = a.size(0), a.size(1)
 
-    # s_prev = torch.zeros(_B, model.s_dim).to(device)
     s_prev = model.encoder_s0.sample_mean({"x0": x[0]})
 
     for t in range(_T):
@@ -96,8 +95,6 @@ def _load(file, device):
     pass
 
 
-#     if not prefix[-3:] == ".pt":
-#         prefix += ".pt"
 #     p.load_state_dict(torch.load("./logs/p/" + path, map_location=device))
 #     q.load_state_dict(torch.load("./logs/q/" + path, map_location=device))
 #     model.optimizer.load_state_dict(
