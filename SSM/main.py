@@ -1,9 +1,12 @@
+# export CUDA_VISIBLE_DEVICES=0
+
 # from trains import Task
 # task = Task.init(project_name="kondo_ssm", task_name="ssm_push")
 
 from config import get_args
 import time
 from tqdm import tqdm
+import numpy as np
 import torch
 from model import SSM
 from data_loader import PushDataLoader
@@ -25,7 +28,7 @@ TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
 
-def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
+def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
     mean_loss = 0
     time.sleep(0.5)
 
@@ -35,7 +38,7 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
         x = x.to(device).transpose(0, 1)  # 30,32,3,28,28
         a = a.to(device).transpose(0, 1)  # 30,32,1
 
-        feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
+        feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
         if train:
             loss = model.train(feed_dict).item() * _B
         else:
@@ -68,5 +71,5 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
 
 for epoch in range(1, args.epochs + 1):
     print(epoch)
-    data_loop(epoch, train_loader, model, device, writer, train=True, plot=True)
-    data_loop(epoch, test_loader, model, device, writer, train=False, plot=True)
+    data_loop(epoch, train_loader, model, args.T, device, writer, train=True, plot=True)
+    data_loop(epoch, test_loader, model, args.T, device, writer, train=False, plot=True)

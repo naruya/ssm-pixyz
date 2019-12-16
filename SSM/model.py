@@ -78,8 +78,9 @@ def _sample_video_from_latent_s(model, batch):
         s_prev = samples["s"]  # TODO 一行前にする
         video.append(frame[None, :])
     video = torch.cat(video, dim=0).transpose(0, 1)
-    x = x.transpose(0, 1)
-    return torch.cat((video, x), dim=0)
+    x = x.transpose(0, 1)  # 2,B,T,C,H,W -> B,2,T,C,H,W
+    video = torch.stack([video, x]).transpose(0, 1).reshape(_B * 2, _T, 3, 64, 64)
+    return video
 
 
 def _save(model, file):

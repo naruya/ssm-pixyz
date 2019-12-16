@@ -21,19 +21,23 @@ class PushDataLoader:
         self.N = self.info.splits[split].num_examples
         self.L = math.ceil(self.N / self.B)
         self.ds = self.ds.shuffle(256).batch(self.B)
-        self.ds = self.ds.map(
-            lambda x: {
-                "video": tf.dtypes.cast(
-                    tf.transpose(x["image_aux1"], [0, 1, 4, 2, 3]), tf.float32
-                )[:, : self.T]
-                / 255.0,
-                "action": x["action"][:, : self.T],
-            },
-            num_parallel_calls=tf.data.experimental.AUTOTUNE,
-        )
+        self.ds = self.ds.map(self.func, num_parallel_calls=tf.data.experimental.AUTOTUNE)
         self.ds = self.ds.prefetch(tf.data.experimental.AUTOTUNE).repeat(args.epochs)
         self.ds = tfds.as_numpy(self.ds)
         self.itr = 0
+
+    def func(self, data):
+        x = (
+            tf.dtypes.cast(
+                tf.transpose(data["image_aux1"], [0, 1, 4, 2, 3]), tf.float32
+            )
+            / 255.0
+        )
+        a = data["action"]
+        _s = np.random.randint(30 - self.T + 1)
+        x = x[:, _s:]
+        a = a[:, _s:]
+        return {"video": x, "action": a}
 
     def __iter__(self):
         return self
