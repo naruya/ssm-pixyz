@@ -10,7 +10,7 @@ def get_args(jupyter=False):
     parser.add_argument('--s_dim', type=int, default=64) # 64
     parser.add_argument('--h_dim', type=int, default=256) # ?
     parser.add_argument('--a_dim', type=int, default=4) # 4
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--data_dir', type=str, default="~/tensorflow_datasets/")
     
     if not jupyter:

@@ -11,6 +11,7 @@ import torch
 from model import SSM
 from data_loader import PushDataLoader
 from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 args = get_args()
 device = "cuda"
@@ -20,10 +21,11 @@ model = SSM(args, device)
 train_loader = PushDataLoader("train", args)
 test_loader = PushDataLoader("test", args)
 
-writer = SummaryWriter()
+log_dir = "../runs/" + datetime.now().strftime('%b%d_%H-%M-%S')
+writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
-PLOT_VIDEO_INTERVAL = 169  # 43264 / 32 / 8
+PLOT_VIDEO_INTERVAL = 1352  # 169  # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 

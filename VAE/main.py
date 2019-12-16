@@ -10,6 +10,8 @@ import time
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
 
 
 args = get_args()
@@ -20,43 +22,42 @@ epochs = args.epochs
 
 def train(epoch):
     time.sleep(0.5)
-    flag_endepoch = False
     for i, x in enumerate(tqdm(train_loader)):
-        if flag_endepoch:
-            break
         x = x.to(device)
-        for t in range(args.T):
-            loss = model.train({"x": x[:, t]})
-        if i % 100 == 0:
-            print("loss: {:.4f}".format(loss))
-            path = "epoch{:04d}-iter{:05d}-{}".format(epoch, i, loss)
-            show(path)
-            save(path)
-        if i + 1 == train_loader.length:
-            flag_endepoch = True
+        loss = model.train({"x": x})
+        if (i + 1) % 100 == 0:
+            itr = i + train_loader.L * epoch
+            writer.add_scalar("loss/itr_train", loss, itr)
+        if i + 1 == train_loader.L:
+            break
+    path = "epoch{:04d}-iter{:05d}-{}".format(epoch, i, loss)
+    show(epoch)
+    save(path)
     print("Epoch: {} Train loss: {:.4f}".format(epoch, loss))
+    writer.add_scalar("loss/train", loss, epoch)
 
 
 def test(epoch):
     test_loss = 0
-    flag_endepoch = False
     for i, x in enumerate(test_loader):
-        if flag_endepoch:
-            break
         x = x.to(device)
-        for t in range(args.T):
-            loss = model.test({"x": x[:, t]})
-            test_loss += loss
-        if i + 1 == test_loader.length:
-            flag_endepoch = True
+        loss = model.test({"x": x})
+        test_loss += loss
+        if i + 1 == test_loader.L:
+            break
     print("Test loss: {:.4f}".format(loss))
+    writer.add_scalar("loss/test", loss, epoch)
 
 
 def plot_reconstrunction(x):
     with torch.no_grad():
         z = q.sample({"x": x}, return_all=False)
-        recon_batch = p.sample_mean(z).view(-1, 3, 64, 64)
-        comparison = torch.cat([x.view(-1, 3, 64, 64), recon_batch]).cpu()
+        recon_batch = p.sample_mean(z)
+        comparison = (
+            torch.stack([x[:32], recon_batch[:32]])
+            .transpose(0, 1)
+            .reshape(64, 3, 64, 64)
+        )
         return comparison
 
 
@@ -66,19 +67,21 @@ def plot_image_from_latent(z_sample):
         return sample
 
 
-def show(path):
-    recon = plot_reconstrunction(_x[:8])
+def show(epoch):
+    recon = plot_reconstrunction(_x)
+    writer.add_images("image/reconst", recon, epoch)
     sample = plot_image_from_latent(z_sample)
-    img = torch.cat([recon, sample[:8]])
+    writer.add_images("image/sample", sample, epoch)
+    # img = torch.cat([recon[:8], sample[:8]])
 
-    plt.figure(figsize=(16, 6))
-    for i in range(24):
-        plt.subplot(3, 8, i + 1)
-        plt.imshow(
-            img[i].numpy().astype(np.float).transpose(1, 2, 0).reshape(64, 64, 3)
-        )
-    plt.savefig("./logs/figure/vae_" + path + ".png")
-    # plt.show()
+    # plt.figure(figsize=(16, 6))
+    # for i in range(24):
+    #     plt.subplot(3, 8, i + 1)
+    #     plt.imshow(
+    #         img[i].numpy().astype(np.float).transpose(1, 2, 0).reshape(64, 64, 3)
+    #     )
+    # plt.savefig("./logs/figure/vae_" + path + ".png")
+    # plt.close()
 
 
 def save(path):
@@ -108,14 +111,21 @@ prior = Normal(
     name="p_{prior}",
 ).to(device)
 kl = KullbackLeibler(q, prior)
-model = VAE(q, p, regularizer=kl, optimizer=optim.Adam, optimizer_params={"lr": 1e-3})
+model = VAE(q, p, regularizer=kl, optimizer=optim.Adam,
+            optimizer_params={"lr": 1e-3})
+
+log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S")
+writer = SummaryWriter(log_dir=log_dir)
 
 train_loader = PushDataLoader(args.path, "train", args.B, args.epochs)
 test_loader = PushDataLoader(args.path, "test", args.B, args.epochs)
 
 z_sample = 0.5 * torch.randn(64, z_dim).to(device)
-_x = next(test_loader)[:, 0]
+_x = next(test_loader)
 _x = _x.to(device)
+
+del test_loader
+test_loader = PushDataLoader(args.path, "test", args.B, args.epochs)
 
 # load(path, device)
 
