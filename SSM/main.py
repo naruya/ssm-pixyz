@@ -42,8 +42,6 @@ def data_loop(epoch, loader, model, device, writer, train=False, plot=True):
             loss = model.test(feed_dict).item() * _B
         mean_loss += loss
 
-        prefix = "train_epoch{:03d}-iter{:06d}".format(epoch, itr)
-
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
         if train and itr % PLOT_VIDEO_INTERVAL == 0 and plot:
