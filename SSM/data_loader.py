@@ -37,8 +37,8 @@ class PushDataLoader:
         )
         a = data["action"]
         _s = np.random.randint(30 - self.T + 1)
-        x = x[:, _s:]
-        a = a[:, _s:]
+        x = x[:, _s : _s + 10]
+        a = a[:, _s : _s + 10]
         return {"video": x, "action": a}
 
     def __iter__(self):
