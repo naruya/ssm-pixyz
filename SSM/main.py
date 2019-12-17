@@ -1,4 +1,5 @@
 # export CUDA_VISIBLE_DEVICES=0
+# python main.py --model SSM1
 
 # from trains import Task
 # task = Task.init(project_name="kondo_ssm", task_name="ssm_push")
@@ -8,15 +9,22 @@ import time
 from tqdm import tqdm
 import numpy as np
 import torch
-from model import SSM
 from data_loader import PushDataLoader
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
+from pixyz_utils import save_model, load_model
 
 args = get_args()
 device = "cuda"
 
-model = SSM(args, device)
+if args.model == "SSM1":
+    from model import SSM1
+
+    model = SSM1(args, device)
+elif args.model == "SSM2":
+    from model import SSM2
+
+    model = SSM2(args, device)
 
 train_loader = PushDataLoader("train", args)
 test_loader = PushDataLoader("test", args)
@@ -25,7 +33,7 @@ log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S")
 writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
-PLOT_VIDEO_INTERVAL = 1352  # 169  # 43264 / 32 / 8
+PLOT_VIDEO_INTERVAL = 13 # 1352  # 169  # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
@@ -35,12 +43,23 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
     time.sleep(0.5)
 
     for batch in tqdm(loader):
+
+        prefix = datetime.now().strftime("%b%d_%H-%M-%S") # TODO: remove
+        save_model(model, prefix)
+        load_model(model, prefix)
+
         x, a, itr = batch
         _B = x.size(0)
         x = x.to(device).transpose(0, 1)  # 30,32,3,28,28
         a = a.to(device).transpose(0, 1)  # 30,32,1
 
-        feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
+        name = model.__class__.__name__
+        if name == "SSM1":
+            feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
+        elif name == "SSM2":
+            NotImplemented
+            # feed_dict = {"s_prev": s_prev, "x": x, "a": a}
+
         if train:
             loss = model.train(feed_dict).item() * _B
         else:
@@ -61,7 +80,7 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
     if train:
         writer.add_scalar("loss/train", mean_loss, epoch)
         prefix = datetime.now().strftime("%b%d_%H-%M-%S")
-        model.save(prefix)
+        save_model(model, prefix)
 
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
