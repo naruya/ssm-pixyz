@@ -1,5 +1,6 @@
-import torch
 import os
+import torch
+from torch_utils import init_weights
 
 
 def save_model(model, prefix):
@@ -17,3 +18,18 @@ def load_model(model, prefix):
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))
+
+
+def eval_mode(model):
+    for dist in model.distributions:
+        dist.eval()
+
+
+def train_mode(model):
+    for dist in model.distributions:
+        dist.train()
+
+
+# def init_model(model):
+#     for dist in model.distributions:
+#         init_weights(dist)

@@ -2,13 +2,16 @@ import torch
 from torch import nn, optim
 from pixyz.models import Model
 from pixyz.losses import KullbackLeibler, CrossEntropy, IterativeLoss
-from core import Prior_S, Decoder_S, Inference_S, EncoderRNN_S, Inference_S0
+from core import Prior_S, Decoder_S, Inference_S, EncoderRNN_S
 from torch_utils import init_weights
+import sys
 
 
 # s0の推論用のencoderを用いる
 class SSM1(Model):
     def __init__(self, args, device):
+        from core import Inference_S0
+
         self.device = device
         h_dim = args.h_dim
         s_dim = args.s_dim
@@ -60,10 +63,18 @@ class SSM1(Model):
 # s0の推論には事前学習済みのVAEを用いる
 class SSM2(Model):
     def __init__(self, args, device):
+        sys.path.append("../")
+        from VAE.core import Inference as Inference_S0
+
         self.device = device
         h_dim = args.h_dim
         s_dim = args.s_dim
         a_dim = args.a_dim
+
+        vae_path = "epoch0404-iter00337-7104.103515625.pt"
+        self.encoder_s0 = Inference_S0(s_dim).to(device)
+        self.encoder_s0.load_state_dict(torch.load("../VAE/logs/q/" + vae_path))
+        self.encoder_s0.eval()
 
         self.prior_s = Prior_S(s_dim, a_dim).to(device)
         self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
@@ -102,6 +113,14 @@ class SSM2(Model):
         # あとでdecoder使ってるし、これ必要?
         self.generate_from_prior_s = self.prior_s * self.decoder_s
 
+    def sample_s0(self, x, train):
+        if train:
+            # s = self.encoder_s0.sample({"x": x}, return_all=False)["z"]
+            NotImplemented
+        else:
+            s = self.encoder_s0.sample_mean({"x": x})
+        return s
+
     def sample_video_from_latent_s(self, loader):
         return _sample_video_from_latent_s(self, loader)
 
@@ -118,8 +137,7 @@ def _sample_video_from_latent_s(model, batch):
     if name == "SSM1":
         s_prev = model.encoder_s0.sample_mean({"x0": x[0]})
     if name == "SSM2":
-        # s_prev = model.encoder_s0.sample_mean({"x0": x[0]})
-        NotImplemented
+        s_prev = model.sample_s0(x[0], train=False)  # TODO: train=False?
 
     for t in range(_T):
         samples = model.generate_from_prior_s.sample({"s_prev": s_prev, "a": a[t]})

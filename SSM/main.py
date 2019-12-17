@@ -12,28 +12,32 @@ import torch
 from data_loader import PushDataLoader
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
-from pixyz_utils import save_model, load_model
+from pixyz_utils import *
+from model import *
 
 args = get_args()
 device = "cuda"
 
 if args.model == "SSM1":
-    from model import SSM1
-
     model = SSM1(args, device)
 elif args.model == "SSM2":
-    from model import SSM2
-
     model = SSM2(args, device)
 
 train_loader = PushDataLoader("train", args)
 test_loader = PushDataLoader("test", args)
 
-log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S")
+log_dir = (
+    "../runs/"
+    + datetime.now().strftime("%b%d_%H-%M-%S")
+    + "_"
+    + args.model
+    + "_"
+    + args.comment
+)
 writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
-PLOT_VIDEO_INTERVAL = 13 # 1352  # 169  # 43264 / 32 / 8
+PLOT_VIDEO_INTERVAL = 1352  # 169  # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
@@ -42,12 +46,12 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
     mean_loss = 0
     time.sleep(0.5)
 
+    # if train:
+    #     train_mode(model)
+    # else:
+    #     eval_mode(model)
+
     for batch in tqdm(loader):
-
-        prefix = datetime.now().strftime("%b%d_%H-%M-%S") # TODO: remove
-        save_model(model, prefix)
-        load_model(model, prefix)
-
         x, a, itr = batch
         _B = x.size(0)
         x = x.to(device).transpose(0, 1)  # 30,32,3,28,28
@@ -57,8 +61,9 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
         if name == "SSM1":
             feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
         elif name == "SSM2":
-            NotImplemented
-            # feed_dict = {"s_prev": s_prev, "x": x, "a": a}
+            # s_prev = model.sample_s0(x[0], train=True)  # TODO: train=False?
+            s_prev = model.sample_s0(x[0], train=False)
+            feed_dict = {"s_prev": s_prev, "x": x, "a": a}
 
         if train:
             loss = model.train(feed_dict).item() * _B

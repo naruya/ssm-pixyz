@@ -114,7 +114,7 @@ kl = KullbackLeibler(q, prior)
 model = VAE(q, p, regularizer=kl, optimizer=optim.Adam,
             optimizer_params={"lr": 1e-3})
 
-log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S") + "_" + args.commen
+log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S") + "_" + args.comment
 writer = SummaryWriter(log_dir=log_dir)
 
 train_loader = PushDataLoader(args.path, "train", args.B, args.epochs)
