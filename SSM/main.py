@@ -21,7 +21,7 @@ model = SSM(args, device)
 train_loader = PushDataLoader("train", args)
 test_loader = PushDataLoader("test", args)
 
-log_dir = "../runs/" + datetime.now().strftime('%b%d_%H-%M-%S')
+log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S")
 writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
@@ -60,15 +60,15 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
     mean_loss /= loader.N
     if train:
         writer.add_scalar("loss/train", mean_loss, epoch)
+        prefix = datetime.now().strftime("%b%d_%H-%M-%S")
+        model.save(prefix)
+
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
 
     if not train and plot:
         video = model.sample_video_from_latent_s(batch)
         writer.add_video("video/test", video, itr)
-
-    # file = "epoch{:03d}-iter{:06d}.pt".format(epoch, itr)
-    # TODO save, load
 
 
 for epoch in range(1, args.epochs + 1):

@@ -27,8 +27,8 @@ class SSM(Model):
             self.prior_s,
         ]
 
-        for distribution in self.distributions:
-            init_weights(distribution)
+        for dist in self.distributions:
+            init_weights(dist)
 
         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
             self.encoder_s, self.prior_s
@@ -55,11 +55,11 @@ class SSM(Model):
     def sample_video_from_latent_s(self, loader):
         return _sample_video_from_latent_s(self, loader)
 
-    def save(self):
-        _save(self)
+    def save(self, prefix):
+        _save(self, prefix)
 
-    def load(self):
-        _load(self)
+    def load(self, prefix):
+        _load(self, prefix)
 
 
 def _sample_video_from_latent_s(model, batch):
@@ -83,21 +83,15 @@ def _sample_video_from_latent_s(model, batch):
     return video
 
 
-def _save(model, file):
-    pass
+def _save(model, prefix):
+    path = "./model/" + prefix
+    for i, dist in enumerate(model.distributions):
+        torch.save(dist.state_dict(), path + "_dist" + str(i) + ".pt")
+    torch.save(model.optimizer.state_dict(), path + "_opt.pt")
 
 
-#     torch.save(p.state_dict(), "./logs/p/" + prefix + ".pt")
-#     torch.save(q.state_dict(), "./logs/q/" + prefix + ".pt")
-#     torch.save(model.optimizer.state_dict(), "./logs/opt/" + prefix + ".pt")
-
-
-def _load(file, device):
-    pass
-
-
-#     p.load_state_dict(torch.load("./logs/p/" + path, map_location=device))
-#     q.load_state_dict(torch.load("./logs/q/" + path, map_location=device))
-#     model.optimizer.load_state_dict(
-#         torch.load("./logs/opt/" + path, map_location=device)
-#     )
+def _load(model, prefix):
+    path = "./model/" + prefix
+    for i, dist in enumerate(model.distributions):
+        dist.load_state_dict(torch.load(path + "_dist" + str(i) + ".pt"))
+    model.optimizer.load_state_dict(torch.load(path + "_opt.pt"))

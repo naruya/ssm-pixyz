@@ -11,6 +11,7 @@ def get_args(jupyter=False):
     parser.add_argument('--z_dim', type=int, default=64)
     parser.add_argument('--epochs', type=int, default=1000)
     parser.add_argument('--path', type=str, default="~/tensorflow_datasets/")
+    parser.add_argument('--comment', type=str, default="")
     if not jupyter:
         args = parser.parse_args()
     else:
