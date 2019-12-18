@@ -3,9 +3,10 @@ import torch
 from torch_utils import init_weights
 
 
-def save_model(model, prefix):
+def save_model(model, comment):
     name = model.__class__.__name__
-    path = os.path.join("model", name, prefix)
+    time = datetime.now().strftime("%b%d_%H-%M-%S")
+    path = os.path.join("model", name + "_" + comment, time)
     os.makedirs(path, exist_ok=True)
     for i, dist in enumerate(model.distributions):
         torch.save(dist.state_dict(), os.path.join(path, "dist" + str(i) + ".pt"))
@@ -18,16 +19,6 @@ def load_model(model, prefix):
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))
-
-
-def eval_mode(model):
-    for dist in model.distributions:
-        dist.eval()
-
-
-def train_mode(model):
-    for dist in model.distributions:
-        dist.train()
 
 
 # def init_model(model):

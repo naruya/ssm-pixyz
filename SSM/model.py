@@ -53,6 +53,30 @@ class SSM1(Model):
             clip_grad_value=10,
         )
 
+        self.loss_ce = (
+            IterativeLoss(
+                CrossEntropy(self.encoder_s, self.decoder_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                update_value={"s": "s_prev"},
+            )
+            .expectation(self.encoder_s0)
+            .expectation(self.rnn_s)
+            .mean()
+        )
+
+        self.loss_kl = (
+            IterativeLoss(
+                KullbackLeibler(self.encoder_s, self.prior_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                # update_value={"s": "s_prev"},
+            )
+            .expectation(self.encoder_s0)
+            .expectation(self.rnn_s)
+            .mean()
+        )
+
         # あとでdecoder使ってるし、これ必要?
         self.generate_from_prior_s = self.prior_s * self.decoder_s
 
@@ -61,68 +85,68 @@ class SSM1(Model):
 
 
 # s0の推論には事前学習済みのVAEを用いる
-class SSM2(Model):
-    def __init__(self, args, device):
-        sys.path.append("../")
-        from VAE.core import Inference as Inference_S0
+# class SSM2(Model):
+#     def __init__(self, args, device):
+#         sys.path.append("../")
+#         from VAE.core import Inference as Inference_S0
 
-        self.device = device
-        h_dim = args.h_dim
-        s_dim = args.s_dim
-        a_dim = args.a_dim
+#         self.device = device
+#         h_dim = args.h_dim
+#         s_dim = args.s_dim
+#         a_dim = args.a_dim
 
-        vae_path = "epoch0404-iter00337-7104.103515625.pt"
-        self.encoder_s0 = Inference_S0(s_dim).to(device)
-        self.encoder_s0.load_state_dict(torch.load("../VAE/logs/q/" + vae_path))
-        self.encoder_s0.eval()
+#         vae_path = "epoch0404-iter00337-7104.103515625.pt"
+#         self.encoder_s0 = Inference_S0(s_dim).to(device)
+#         self.encoder_s0.load_state_dict(torch.load("../VAE/logs/q/" + vae_path))
+#         self.encoder_s0.eval()
 
-        self.prior_s = Prior_S(s_dim, a_dim).to(device)
-        self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
-        self.decoder_s = Decoder_S(s_dim).to(device)
-        self.rnn_s = EncoderRNN_S(h_dim).to(device)
+#         self.prior_s = Prior_S(s_dim, a_dim).to(device)
+#         self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
+#         self.decoder_s = Decoder_S(s_dim).to(device)
+#         self.rnn_s = EncoderRNN_S(h_dim).to(device)
 
-        self.distributions = [
-            self.rnn_s,
-            self.encoder_s,
-            self.decoder_s,
-            self.prior_s,
-        ]
+#         self.distributions = [
+#             self.rnn_s,
+#             self.encoder_s,
+#             self.decoder_s,
+#             self.prior_s,
+#         ]
 
-        for dist in self.distributions:
-            init_weights(dist)
+#         for dist in self.distributions:
+#             init_weights(dist)
 
-        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
-            self.encoder_s, self.prior_s
-        )
-        _loss = IterativeLoss(
-            step_loss,
-            max_iter=args.T,
-            series_var=["x", "h", "a"],
-            update_value={"s": "s_prev"},
-        )
-        loss = _loss.expectation(self.rnn_s).mean()
+#         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+#             self.encoder_s, self.prior_s
+#         )
+#         _loss = IterativeLoss(
+#             step_loss,
+#             max_iter=args.T,
+#             series_var=["x", "h", "a"],
+#             update_value={"s": "s_prev"},
+#         )
+#         loss = _loss.expectation(self.rnn_s).mean()
 
-        super(SSM2, self).__init__(
-            loss,
-            distributions=self.distributions,
-            optimizer=optim.RMSprop,
-            optimizer_params={"lr": 5e-4},
-            clip_grad_value=10,
-        )
+#         super(SSM2, self).__init__(
+#             loss,
+#             distributions=self.distributions,
+#             optimizer=optim.RMSprop,
+#             optimizer_params={"lr": 5e-4},
+#             clip_grad_value=10,
+#         )
 
-        # あとでdecoder使ってるし、これ必要?
-        self.generate_from_prior_s = self.prior_s * self.decoder_s
+#         # あとでdecoder使ってるし、これ必要?
+#         self.generate_from_prior_s = self.prior_s * self.decoder_s
 
-    def sample_s0(self, x, train):
-        if train:
-            # s = self.encoder_s0.sample({"x": x}, return_all=False)["z"]
-            NotImplemented
-        else:
-            s = self.encoder_s0.sample_mean({"x": x})
-        return s
+#     def sample_s0(self, x, train):
+#         if train:
+#             # s = self.encoder_s0.sample({"x": x}, return_all=False)["z"]
+#             NotImplemented
+#         else:
+#             s = self.encoder_s0.sample_mean({"x": x})
+#         return s
 
-    def sample_video_from_latent_s(self, loader):
-        return _sample_video_from_latent_s(self, loader)
+#     def sample_video_from_latent_s(self, loader):
+#         return _sample_video_from_latent_s(self, loader)
 
 
 def _sample_video_from_latent_s(model, batch):

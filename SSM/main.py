@@ -42,16 +42,18 @@ TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
 
-def data_loop(epoch, loader, model, T, device, writer, train=False, prefix=None):
+def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
     mean_loss = 0
+    mean_loss_ce = 0
+    mean_loss_kl = 0
     time.sleep(0.5)
 
     name = model.__class__.__name__
 
     # if train:
-    #     train_mode(model)
+    #     model.distributions.train()
     # else:
-    #     eval_mode(model)
+    #     model.distributions.eval()
 
     for batch in tqdm(loader):
         x, a, itr = batch
@@ -61,16 +63,17 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, prefix=None)
 
         if name == "SSM1":
             feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
-        elif name == "SSM2":
-            # s_prev = model.sample_s0(x[0], train=True)  # TODO: train=False?
-            s_prev = model.sample_s0(x[0], train=False)
-            feed_dict = {"s_prev": s_prev, "x": x, "a": a}
+        # elif name == "SSM2":
+        #     # s_prev = model.sample_s0(x[0], train=True)
+        #     s_prev = model.sample_s0(x[0], train=False)
 
         if train:
             loss = model.train(feed_dict).item() * _B
         else:
             loss = model.test(feed_dict).item() * _B
         mean_loss += loss
+        mean_loss_ce += model.loss_ce.eval(feed_dict).item() * _B
+        mean_loss_kl += model.loss_kl.eval(feed_dict).item() * _B
 
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
@@ -84,21 +87,29 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, prefix=None)
         # print(model.encoder_s0.fc1.weight[:10])
 
     mean_loss /= loader.N
+    mean_loss_ce /= loader.N
+    mean_loss_kl /= loader.N
+    video = model.sample_video_from_latent_s(batch)
+
     if train:
         writer.add_scalar("loss/train", mean_loss, epoch)
-        video = model.sample_video_from_latent_s(batch)
+        writer.add_scalar("loss/train_ce", mean_loss_ce, epoch)
+        writer.add_scalar("loss/train_kl", mean_loss_kl, epoch)
         writer.add_video("video/train", video, epoch)
-
-        prefix = datetime.now().strftime("%b%d_%H-%M-%S") + "_" + prefix
-        save_model(model, prefix)
+        save_model(model, comment)
 
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
-        video = model.sample_video_from_latent_s(batch)
+        writer.add_scalar("loss/test_ce", mean_loss_ce, epoch)
+        writer.add_scalar("loss/test_kl", mean_loss_kl, epoch)
         writer.add_video("video/test", video, epoch)
 
 
 for epoch in range(1, args.epochs + 1):
     print(epoch)
-    data_loop(epoch, train_loader, model, args.T, device, writer, train=True, prefix=args.comment)
-    data_loop(epoch, test_loader, model, args.T, device, writer, train=False, prefix=args.comment)
+    data_loop(
+        epoch, train_loader, model, args.T, device, writer, args.comment, train=True
+    )
+    data_loop(
+        epoch, test_loader, model, args.T, device, writer, args.comment, train=False
+    )
