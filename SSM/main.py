@@ -37,14 +37,16 @@ log_dir = (
 writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
-PLOT_VIDEO_INTERVAL = 1352  # 169  # 43264 / 32 / 8
+PLOT_VIDEO_INTERVAL = 169  # 1352 # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
 
-def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
+def data_loop(epoch, loader, model, T, device, writer, train=False, prefix=None):
     mean_loss = 0
     time.sleep(0.5)
+
+    name = model.__class__.__name__
 
     # if train:
     #     train_mode(model)
@@ -57,7 +59,6 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
         x = x.to(device).transpose(0, 1)  # 30,32,3,28,28
         a = a.to(device).transpose(0, 1)  # 30,32,1
 
-        name = model.__class__.__name__
         if name == "SSM1":
             feed_dict = {"x0": x[0], "x": x, "a": a}  # TODO: .clone()要る?
         elif name == "SSM2":
@@ -73,29 +74,31 @@ def data_loop(epoch, loader, model, T, device, writer, train=False, plot=True):
 
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
-        if train and itr % PLOT_VIDEO_INTERVAL == 0 and plot:
+        if train and itr % PLOT_VIDEO_INTERVAL == 0:
             video = model.sample_video_from_latent_s(batch)
-            writer.add_video("video/train", video, itr)
+            writer.add_video("video/itr_train", video, itr)
         if train and itr % TRAIN_INTERVAL == 0:
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
+        # print(model.encoder_s0.fc1.weight[:10])
 
     mean_loss /= loader.N
     if train:
         writer.add_scalar("loss/train", mean_loss, epoch)
-        prefix = datetime.now().strftime("%b%d_%H-%M-%S")
+        video = model.sample_video_from_latent_s(batch)
+        writer.add_video("video/train", video, epoch)
+
+        prefix = datetime.now().strftime("%b%d_%H-%M-%S") + "_" + prefix
         save_model(model, prefix)
 
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
-
-    if not train and plot:
         video = model.sample_video_from_latent_s(batch)
-        writer.add_video("video/test", video, itr)
+        writer.add_video("video/test", video, epoch)
 
 
 for epoch in range(1, args.epochs + 1):
     print(epoch)
-    data_loop(epoch, train_loader, model, args.T, device, writer, train=True, plot=True)
-    data_loop(epoch, test_loader, model, args.T, device, writer, train=False, plot=True)
+    data_loop(epoch, train_loader, model, args.T, device, writer, train=True, prefix=args.comment)
+    data_loop(epoch, test_loader, model, args.T, device, writer, train=False, prefix=args.comment)

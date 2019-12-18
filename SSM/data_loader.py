@@ -20,7 +20,7 @@ class PushDataLoader:
         )
         self.N = self.info.splits[split].num_examples
         self.L = math.ceil(self.N / self.B)
-        self.ds = self.ds.shuffle(256).batch(self.B)
+        self.ds = self.ds.shuffle(self.N).batch(self.B)  # TODO: buffersize, interleave()
         self.ds = self.ds.map(
             self.func, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
