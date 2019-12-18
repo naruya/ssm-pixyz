@@ -22,6 +22,8 @@ if args.model == "SSM1":
     model = SSM1(args, device)
 elif args.model == "SSM2":
     model = SSM2(args, device)
+elif args.model == "SSM3":
+    model = SSM3(args, device)
 
 train_loader = PushDataLoader("train", args)
 test_loader = PushDataLoader("test", args)
@@ -37,7 +39,7 @@ log_dir = (
 writer = SummaryWriter(log_dir=log_dir)
 
 PLOT_SCALAR_INTERVAL = 13
-PLOT_VIDEO_INTERVAL = 169  # 1352 # 43264 / 32 / 8
+PLOT_VIDEO_INTERVAL = 1352  # 43264 / 32 / 8
 TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
@@ -66,6 +68,10 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         # elif name == "SSM2":
         #     # s_prev = model.sample_s0(x[0], train=True)
         #     s_prev = model.sample_s0(x[0], train=False)
+        #     feed_dict = {"s_prev": s_prev, "x": x, "a": a}
+        elif name == "SSM3":
+            s0 = model.sample_s0(x[0:1])
+            feed_dict = {"s_prev": s0, "x": x, "a": a}
 
         if train:
             loss = model.train(feed_dict).item() * _B
@@ -95,6 +101,8 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         writer.add_scalar("loss/train", mean_loss, epoch)
         writer.add_scalar("loss/train_ce", mean_loss_ce, epoch)
         writer.add_scalar("loss/train_kl", mean_loss_kl, epoch)
+        writer.add_scalar("s0/train_norm_mean", s0.norm(dim=1).mean())
+        writer.add_scalar("s0/train_norm_std", s0.norm(dim=1).std())
         writer.add_video("video/train", video, epoch)
         save_model(model, comment)
 
@@ -102,6 +110,8 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         writer.add_scalar("loss/test", mean_loss, epoch)
         writer.add_scalar("loss/test_ce", mean_loss_ce, epoch)
         writer.add_scalar("loss/test_kl", mean_loss_kl, epoch)
+        writer.add_scalar("s0/test_norm_mean", s0.norm(dim=1).mean())
+        writer.add_scalar("s0/test_norm_std", s0.norm(dim=1).std())
         writer.add_video("video/test", video, epoch)
 
 

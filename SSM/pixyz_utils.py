@@ -1,6 +1,7 @@
 import os
 import torch
 from torch_utils import init_weights
+from datetime import datetime
 
 
 def save_model(model, comment):

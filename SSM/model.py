@@ -149,6 +149,89 @@ class SSM1(Model):
 #         return _sample_video_from_latent_s(self, loader)
 
 
+# s0の推論用のencoderを用いる
+class SSM3(Model):
+    def __init__(self, args, device):
+        self.device = device
+        self.h_dim = h_dim = args.h_dim
+        self.s_dim = s_dim = args.s_dim
+        self.a_dim = a_dim = args.a_dim
+
+        self.prior_s = Prior_S(s_dim, a_dim).to(device)
+        self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
+        self.decoder_s = Decoder_S(s_dim).to(device)
+        self.rnn_s = EncoderRNN_S(h_dim).to(device)
+
+        self.distributions = [
+            self.rnn_s,
+            self.encoder_s,
+            self.decoder_s,
+            self.prior_s,
+        ]
+
+        for dist in self.distributions:
+            init_weights(dist)
+
+        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+            self.encoder_s, self.prior_s
+        )
+        _loss = IterativeLoss(
+            step_loss,
+            max_iter=args.T,
+            series_var=["x", "h", "a"],
+            update_value={"s": "s_prev"},
+        )
+        loss = _loss.expectation(self.rnn_s).mean()
+
+        super(SSM3, self).__init__(
+            loss,
+            distributions=self.distributions,
+            optimizer=optim.RMSprop,
+            optimizer_params={"lr": 5e-4},
+            clip_grad_value=10,
+        )
+
+        self.loss_ce = (
+            IterativeLoss(
+                CrossEntropy(self.encoder_s, self.decoder_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                update_value={"s": "s_prev"},
+            )
+            .expectation(self.rnn_s)
+            .mean()
+        )
+
+        self.loss_kl = (
+            IterativeLoss(
+                KullbackLeibler(self.encoder_s, self.prior_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                # update_value={"s": "s_prev"},
+            )
+            .expectation(self.rnn_s)
+            .mean()
+        )
+
+        # あとでdecoder使ってるし、これ必要?
+        self.generate_from_prior_s = self.prior_s * self.decoder_s
+
+    def sample_s0(self, x):  # context forwarding
+        _T, _B = x.size(0), x.size(1)
+        if not x.size(1) == 1:
+            NotImplemented
+        s_prev = torch.zeros(_B, self.s_dim).to(self.device)
+        a = torch.zeros(_B, self.a_dim).to(self.device)
+        h = self.rnn_s.sample({"x": x}, return_all=False)["h"]
+        h = torch.transpose(h, 0, 1)[:, 0]
+        feed_dict = {"h": h, "s_prev": s_prev, "a": a}
+        s = self.encoder_s.sample(feed_dict, return_all=False)["s"]
+        return s
+
+    def sample_video_from_latent_s(self, loader):
+        return _sample_video_from_latent_s(self, loader)
+
+
 def _sample_video_from_latent_s(model, batch):
     device = model.device
     video = []
@@ -160,8 +243,10 @@ def _sample_video_from_latent_s(model, batch):
     name = model.__class__.__name__
     if name == "SSM1":
         s_prev = model.encoder_s0.sample_mean({"x0": x[0]})
-    if name == "SSM2":
+    elif name == "SSM2":
         s_prev = model.sample_s0(x[0], train=False)  # TODO: train=False?
+    elif name == "SSM3":
+        s_prev = model.sample_s0(x[0:1])
 
     for t in range(_T):
         samples = model.generate_from_prior_s.sample({"s_prev": s_prev, "a": a[t]})
