@@ -74,23 +74,26 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
             feed_dict = {"s_prev": s0, "x": x, "a": a}
 
         if train:
-            loss = model.train(feed_dict).item() * _B
+            loss, total_norm = model.train(feed_dict, return_total_norm=True)
+            loss, total_norm = loss.item(), total_norm.item()
         else:
-            loss = model.test(feed_dict).item() * _B
-        mean_loss += loss
-        mean_loss_ce += model.loss_ce.eval(feed_dict).item() * _B
-        mean_loss_kl += model.loss_kl.eval(feed_dict).item() * _B
+            loss = model.test(feed_dict).item()
 
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
+            writer.add_scalar("grad_norm/itr_train", total_norm, itr)
         if train and itr % PLOT_VIDEO_INTERVAL == 0:
             video = model.sample_video_from_latent_s(batch)
             writer.add_video("video/itr_train", video, itr)
+
+        mean_loss += loss * _B
+        mean_loss_ce += model.loss_ce.eval(feed_dict).item() * _B
+        mean_loss_kl += model.loss_kl.eval(feed_dict).item() * _B
+
         if train and itr % TRAIN_INTERVAL == 0:
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
-        # print(model.encoder_s0.fc1.weight[:10])
 
     mean_loss /= loader.N
     mean_loss_ce /= loader.N
@@ -101,8 +104,8 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         writer.add_scalar("loss/train", mean_loss, epoch)
         writer.add_scalar("loss/train_ce", mean_loss_ce, epoch)
         writer.add_scalar("loss/train_kl", mean_loss_kl, epoch)
-        writer.add_scalar("s0/train_norm_mean", s0.norm(dim=1).mean())
-        writer.add_scalar("s0/train_norm_std", s0.norm(dim=1).std())
+        writer.add_scalar("s0/train_norm_mean", s0.norm(dim=1).mean(), epoch)
+        writer.add_scalar("s0/train_norm_std", s0.norm(dim=1).std(), epoch)
         writer.add_video("video/train", video, epoch)
         save_model(model, comment)
 
@@ -110,8 +113,8 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         writer.add_scalar("loss/test", mean_loss, epoch)
         writer.add_scalar("loss/test_ce", mean_loss_ce, epoch)
         writer.add_scalar("loss/test_kl", mean_loss_kl, epoch)
-        writer.add_scalar("s0/test_norm_mean", s0.norm(dim=1).mean())
-        writer.add_scalar("s0/test_norm_std", s0.norm(dim=1).std())
+        writer.add_scalar("s0/test_norm_mean", s0.norm(dim=1).mean(), epoch)
+        writer.add_scalar("s0/test_norm_std", s0.norm(dim=1).std(), epoch)
         writer.add_video("video/test", video, epoch)
 
 
