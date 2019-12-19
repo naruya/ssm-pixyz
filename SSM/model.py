@@ -1,3 +1,6 @@
+# optim
+# https://github.com/google-research/planet/blob/c04226b6db136f5269625378cd6a0aa875a92842/planet/scripts/configs.py#L193
+
 import torch
 from torch import nn, optim
 from pixyz.models import Model
@@ -48,9 +51,9 @@ class SSM1(Model):
         super(SSM1, self).__init__(
             loss,
             distributions=self.distributions,
-            optimizer=optim.RMSprop,
-            optimizer_params={"lr": 5e-4},
-            clip_grad_value=10,
+            optimizer=optim.Adam,
+            optimizer_params={}, # use default param lr: 1e-3
+            clip_grad_norm=1000.0,
         )
 
         self.loss_ce = (
@@ -149,7 +152,7 @@ class SSM1(Model):
 #         return _sample_video_from_latent_s(self, loader)
 
 
-# s0の推論用のencoderを用いる
+# inferenceを使ってs0を推論する
 class SSM3(Model):
     def __init__(self, args, device):
         self.device = device
@@ -186,9 +189,9 @@ class SSM3(Model):
         super(SSM3, self).__init__(
             loss,
             distributions=self.distributions,
-            optimizer=optim.RMSprop,
-            optimizer_params={"lr": 5e-4},
-            clip_grad_value=10,
+            optimizer=optim.Adam,
+            optimizer_params={}, # use default param lr: 1e-3
+            clip_grad_norm=1000.0,
         )
 
         self.loss_ce = (
