@@ -44,7 +44,7 @@ TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
 
-def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
+def data_loop(epoch, loader, model, T, device, writer, train=True):
     mean_loss = 0
     mean_loss_ce = 0
     mean_loss_kl = 0
@@ -105,7 +105,6 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
         writer.add_scalar("s0/train_norm_mean", s0.norm(dim=1).mean(), epoch)
         writer.add_scalar("s0/train_norm_std", s0.norm(dim=1).std(), epoch)
         writer.add_video("video/train", video, epoch)
-        save_model(model, comment)
 
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
@@ -118,9 +117,6 @@ def data_loop(epoch, loader, model, T, device, writer, comment, train=True):
 
 for epoch in range(1, args.epochs + 1):
     print(epoch)
-    data_loop(
-        epoch, train_loader, model, args.T, device, writer, args.comment, train=True
-    )
-    data_loop(
-        epoch, test_loader, model, args.T, device, writer, args.comment, train=False
-    )
+    data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
+    data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
+    save_model(model, args.comment)
