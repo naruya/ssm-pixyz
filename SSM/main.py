@@ -105,6 +105,8 @@ def data_loop(epoch, loader, model, T, device, writer, train=True):
         writer.add_scalar("s0/train_norm_mean", s0.norm(dim=1).mean(), epoch)
         writer.add_scalar("s0/train_norm_std", s0.norm(dim=1).std(), epoch)
         writer.add_video("video/train", video, epoch)
+        print(mean_loss)
+        print(mean_loss_ce + mean_loss_kl)
 
     else:
         writer.add_scalar("loss/test", mean_loss, epoch)
@@ -113,6 +115,8 @@ def data_loop(epoch, loader, model, T, device, writer, train=True):
         writer.add_scalar("s0/test_norm_mean", s0.norm(dim=1).mean(), epoch)
         writer.add_scalar("s0/test_norm_std", s0.norm(dim=1).std(), epoch)
         writer.add_video("video/test", video, epoch)
+        print(mean_loss)
+        print(mean_loss_ce + mean_loss_kl)
 
 
 for epoch in range(1, args.epochs + 1):
