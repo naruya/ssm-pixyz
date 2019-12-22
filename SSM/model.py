@@ -9,82 +9,81 @@ from core import Prior_S, Decoder_S, Inference_S, EncoderRNN_S
 from torch_utils import init_weights
 import sys
 
-
 # s0の推論用のencoderを用いる
-class SSM1(Model):
-    def __init__(self, args, device):
-        from core import Inference_S0
+# class SSM1(Model):
+#     def __init__(self, args, device):
+#         from core import Inference_S0
 
-        self.device = device
-        h_dim = args.h_dim
-        s_dim = args.s_dim
-        a_dim = args.a_dim
+#         self.device = device
+#         h_dim = args.h_dim
+#         s_dim = args.s_dim
+#         a_dim = args.a_dim
 
-        self.encoder_s0 = Inference_S0(h_dim, s_dim).to(device)
-        self.prior_s = Prior_S(s_dim, a_dim).to(device)
-        self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
-        self.decoder_s = Decoder_S(s_dim).to(device)
-        self.rnn_s = EncoderRNN_S(h_dim).to(device)
+#         self.encoder_s0 = Inference_S0(h_dim, s_dim).to(device)
+#         self.prior_s = Prior_S(s_dim, a_dim).to(device)
+#         self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
+#         self.decoder_s = Decoder_S(s_dim).to(device)
+#         self.rnn_s = EncoderRNN_S(h_dim).to(device)
 
-        self.distributions = [
-            self.encoder_s0,
-            self.rnn_s,
-            self.encoder_s,
-            self.decoder_s,
-            self.prior_s,
-        ]
+#         self.distributions = [
+#             self.encoder_s0,
+#             self.rnn_s,
+#             self.encoder_s,
+#             self.decoder_s,
+#             self.prior_s,
+#         ]
 
-        for dist in self.distributions:
-            init_weights(dist)
+#         for dist in self.distributions:
+#             init_weights(dist)
 
-        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
-            self.encoder_s, self.prior_s
-        )
-        _loss = IterativeLoss(
-            step_loss,
-            max_iter=args.T,
-            series_var=["x", "h", "a"],
-            update_value={"s": "s_prev"},
-        )
-        loss = _loss.expectation(self.encoder_s0).expectation(self.rnn_s).mean()
+#         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+#             self.encoder_s, self.prior_s
+#         )
+#         _loss = IterativeLoss(
+#             step_loss,
+#             max_iter=args.T,
+#             series_var=["x", "h", "a"],
+#             update_value={"s": "s_prev"},
+#         )
+#         loss = _loss.expectation(self.encoder_s0).expectation(self.rnn_s).mean()
 
-        super(SSM1, self).__init__(
-            loss,
-            distributions=self.distributions,
-            optimizer=optim.Adam,
-            optimizer_params={}, # use default param lr: 1e-3
-            clip_grad_norm=1000.0,
-        )
+#         super(SSM1, self).__init__(
+#             loss,
+#             distributions=self.distributions,
+#             optimizer=optim.Adam,
+#             optimizer_params={}, # use default param lr: 1e-3
+#             clip_grad_norm=1000.0,
+#         )
 
-        self.loss_ce = (
-            IterativeLoss(
-                CrossEntropy(self.encoder_s, self.decoder_s),
-                max_iter=args.T,
-                series_var=["x", "h", "a"],
-                update_value={"s": "s_prev"},
-            )
-            .expectation(self.encoder_s0)
-            .expectation(self.rnn_s)
-            .mean()
-        )
+#         self.loss_ce = (
+#             IterativeLoss(
+#                 CrossEntropy(self.encoder_s, self.decoder_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 update_value={"s": "s_prev"},
+#             )
+#             .expectation(self.encoder_s0)
+#             .expectation(self.rnn_s)
+#             .mean()
+#         )
 
-        self.loss_kl = (
-            IterativeLoss(
-                KullbackLeibler(self.encoder_s, self.prior_s),
-                max_iter=args.T,
-                series_var=["x", "h", "a"],
-                # update_value={"s": "s_prev"},
-            )
-            .expectation(self.encoder_s0)
-            .expectation(self.rnn_s)
-            .mean()
-        )
+#         self.loss_kl = (
+#             IterativeLoss(
+#                 KullbackLeibler(self.encoder_s, self.prior_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 # update_value={"s": "s_prev"},
+#             )
+#             .expectation(self.encoder_s0)
+#             .expectation(self.rnn_s)
+#             .mean()
+#         )
 
-        # あとでdecoder使ってるし、これ必要?
-        self.generate_from_prior_s = self.prior_s * self.decoder_s
+#         # あとでdecoder使ってるし、これ必要?
+#         self.generate_from_prior_s = self.prior_s * self.decoder_s
 
-    def sample_video_from_latent_s(self, loader):
-        return _sample_video_from_latent_s(self, loader)
+#     def sample_video_from_latent_s(self, loader):
+#         return _sample_video_from_latent_s(self, loader)
 
 
 # s0の推論には事前学習済みのVAEを用いる
@@ -175,25 +174,40 @@ class SSM3(Model):
         for dist in self.distributions:
             init_weights(dist)
 
-        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
-            self.encoder_s, self.prior_s
-        )
-        _loss = IterativeLoss(
-            step_loss,
-            max_iter=args.T,
-            series_var=["x", "h", "a"],
-            update_value={"s": "s_prev"},
-        )
-        loss = _loss.expectation(self.rnn_s).mean()
+#         # 1
+#         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+#             self.encoder_s, self.prior_s
+#         )
+#         _loss = IterativeLoss(
+#             step_loss,
+#             max_iter=args.T,
+#             series_var=["x", "h", "a"],
+#             update_value={"s": "s_prev"},
+#         )
+#         loss = _loss.expectation(self.rnn_s).mean()
+#         self.loss1 = loss
 
-        super(SSM3, self).__init__(
-            loss,
-            distributions=self.distributions,
-            optimizer=optim.Adam,
-            optimizer_params={}, # use default param lr: 1e-3
-            clip_grad_norm=1000.0,
-        )
+#         # 2
+#         _loss_ce = (
+#             IterativeLoss(
+#                 CrossEntropy(self.encoder_s, self.decoder_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 update_value={"s": "s_prev"},
+#             )
+#         )
+#         _loss_kl = (
+#             IterativeLoss(
+#                 KullbackLeibler(self.encoder_s, self.prior_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 # update_value={"s": "s_prev"},
+#             )
+#         )
+#         loss = (_loss_ce + _loss_kl).expectation(self.rnn_s).mean()
+#         self.loss2 = loss
 
+        # 3
         self.loss_ce = (
             IterativeLoss(
                 CrossEntropy(self.encoder_s, self.decoder_s),
@@ -204,7 +218,6 @@ class SSM3(Model):
             .expectation(self.rnn_s)
             .mean()
         )
-
         self.loss_kl = (
             IterativeLoss(
                 KullbackLeibler(self.encoder_s, self.prior_s),
@@ -215,11 +228,22 @@ class SSM3(Model):
             .expectation(self.rnn_s)
             .mean()
         )
+#         loss = self.loss_ce + self.loss_kl
+        loss = self.loss_ce
+#         self.loss3 = loss
+
+        super(SSM3, self).__init__(
+            loss,
+            distributions=self.distributions,
+            optimizer=optim.Adam,
+            optimizer_params={}, # use default param lr: 1e-3
+            clip_grad_norm=1000.0,
+        )
 
         # あとでdecoder使ってるし、これ必要?
         self.generate_from_prior_s = self.prior_s * self.decoder_s
 
-    def sample_s0(self, x):  # context forwarding
+    def sample_s0(self, x):  # context forwarding # TODO: train/test
         _T, _B = x.size(0), x.size(1)
         if not x.size(1) == 1:
             NotImplemented
