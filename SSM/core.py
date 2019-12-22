@@ -57,7 +57,7 @@ class Decoder_S(Bernoulli):
 
 class EncoderRNN_S(Deterministic):
     def __init__(self, h_dim):
-        super(EncoderRNN_S, self).__init__(cond_var=["x"], var=["h"])
+        super(EncoderRNN_S, self).__init__(cond_var=["x"], var=["h"], name="q")
         self.h_dim = h_dim
         self.conv = nn.Sequential(
             nn.Conv2d(3, 64, 5, stride=1, padding=0),  # -> (N,64,60,60)
@@ -97,7 +97,7 @@ class EncoderRNN_S(Deterministic):
 
 class Inference_S(Normal):
     def __init__(self, h_dim, s_dim, a_dim):
-        super(Inference_S, self).__init__(cond_var=["h", "s_prev", "a"], var=["s"])
+        super(Inference_S, self).__init__(cond_var=["h", "s_prev", "a"], var=["s"], name="q")
         self.upsample_a = nn.Linear(a_dim, s_dim)
         self.fc3 = nn.Linear(h_dim + s_dim * 2, h_dim + s_dim * 2)
         self.fc41 = nn.Linear(h_dim + s_dim * 2, s_dim)
@@ -110,34 +110,34 @@ class Inference_S(Normal):
         return {"loc": self.fc41(h), "scale": F.softplus(self.fc42(h))}
 
 
-class Inference_S0(Normal):
-    def __init__(self, h_dim, s_dim):
-        super(Inference_S0, self).__init__(cond_var=["x0"], var=["s_prev"])
-        self.conv = nn.Sequential(
-            nn.Conv2d(3, 64, 5, stride=1, padding=0),  # -> (N,64,60,60)
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,64,30,30)
-            nn.Conv2d(64, 32, 5, stride=1, padding=0),  # -> (N,32,26,26)
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,32,13,13)
-            nn.Conv2d(32, 32, 5, stride=1, padding=0),  # -> (N,32,9,9)
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,32,4,4)
-        )
-        self.fc = nn.Sequential(
-            nn.Linear(32 * 4 * 4, 512),  # input size should be (N,3,64,64)
-            nn.ReLU(),
-            nn.Linear(512, h_dim),
-            nn.ReLU(),
-        )
-        self.fc3 = nn.Linear(h_dim, h_dim)
-        self.fc41 = nn.Linear(h_dim, s_dim)
-        self.fc42 = nn.Linear(h_dim, s_dim)
+# class Inference_S0(Normal):
+#     def __init__(self, h_dim, s_dim):
+#         super(Inference_S0, self).__init__(cond_var=["x0"], var=["s_prev"])
+#         self.conv = nn.Sequential(
+#             nn.Conv2d(3, 64, 5, stride=1, padding=0),  # -> (N,64,60,60)
+#             nn.BatchNorm2d(64),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,64,30,30)
+#             nn.Conv2d(64, 32, 5, stride=1, padding=0),  # -> (N,32,26,26)
+#             nn.BatchNorm2d(32),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,32,13,13)
+#             nn.Conv2d(32, 32, 5, stride=1, padding=0),  # -> (N,32,9,9)
+#             nn.BatchNorm2d(32),
+#             nn.ReLU(),
+#             nn.MaxPool2d(2, stride=2, padding=0),  # -> (N,32,4,4)
+#         )
+#         self.fc = nn.Sequential(
+#             nn.Linear(32 * 4 * 4, 512),  # input size should be (N,3,64,64)
+#             nn.ReLU(),
+#             nn.Linear(512, h_dim),
+#             nn.ReLU(),
+#         )
+#         self.fc3 = nn.Linear(h_dim, h_dim)
+#         self.fc41 = nn.Linear(h_dim, s_dim)
+#         self.fc42 = nn.Linear(h_dim, s_dim)
 
-    def forward(self, x0):
-        h = self.fc(self.conv(x0).view(-1, 32 * 4 * 4))
-        h = F.relu(self.fc3(h))
-        return {"loc": self.fc41(h), "scale": F.softplus(self.fc42(h))}
+#     def forward(self, x0):
+#         h = self.fc(self.conv(x0).view(-1, 32 * 4 * 4))
+#         h = F.relu(self.fc3(h))
+#         return {"loc": self.fc41(h), "scale": F.softplus(self.fc42(h))}
