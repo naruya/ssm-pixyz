@@ -7,6 +7,7 @@ from pixyz.models import Model
 from pixyz.losses import KullbackLeibler, CrossEntropy, IterativeLoss
 from pixyz_utils import save_model, load_model, init_model
 from core import Prior_S, Decoder_S, Inference_S, EncoderRNN_S
+from torch.nn.utils import clip_grad_norm_, clip_grad_value_
 
 
 # inferenceを使ってs0を推論する
@@ -120,6 +121,94 @@ class SSM3(Model):
     def load(self, comment):
         load_model(self, comment)
 
+# non-pixyz.Model
+class SSM4(nn.Module):
+    def __init__(self, args, device):
+        self.device = device
+        self.h_dim = h_dim = args.h_dim
+        self.s_dim = s_dim = args.s_dim
+        self.a_dim = a_dim = args.a_dim
+        self.T = args.T
+
+        self.prior_s = Prior_S(s_dim, a_dim).to(device)
+        self.encoder_s = Inference_S(h_dim, s_dim, a_dim).to(device)
+        self.decoder_s = Decoder_S(s_dim).to(device)
+        self.rnn_s = EncoderRNN_S(h_dim).to(device)
+
+        self.distributions = [
+            self.rnn_s,
+            self.encoder_s,
+            self.decoder_s,
+            self.prior_s,
+        ]
+        init_model(self)
+        self.distributions = nn.ModuleList(self.distributions)
+
+        params = self.distributions.parameters()
+        optimizer = optim.Adam
+        optimizer_params={}
+        self.optimizer = optimizer(params, **optimizer_params)
+        self.clip_norm = 1000
+
+        # あとでdecoder使ってるし、これ必要?
+        self.generate_from_prior_s = self.prior_s * self.decoder_s
+
+    # EstimateELBO
+    def forward(self, feed_dict):
+        s_prev = feed_dict["s_prev"]
+        x = feed_dict["x"]
+        a = feed_dict["a"]
+
+        ce = 0.
+        kl = 0.
+
+        h = self.rnn_s.sample({"x": x}, return_all=False)["h"]  # TxBxh_dim
+        raise NotImplementedError
+        for t in range(self.T):
+            pass
+        pass
+
+
+    def train_(self, feed_dict):
+        self.train()
+
+        self.optimizer.zero_grad()
+        loss, ce, kl = self.forward(feed_dict)
+        loss.backward()
+        total_norm = clip_grad_norm_(self.distributions.parameters(), self.clip_norm)
+        self.optimizer.step()
+
+        return loss, ce, kl, total_norm
+
+    def eval_(self, feed_dict):
+        self.eval()
+
+        with torch.no_grad():
+            loss, ce, kl = self.forward(feed_dict)
+
+        return loss, ce, kl, None
+
+    def sample_s0(self, x):  # context forwarding # TODO: train/test
+        _T, _B = x.size(0), x.size(1)
+        if not x.size(1) == 1:
+            NotImplemented
+        s_prev = torch.zeros(_B, self.s_dim).to(self.device)
+        a = torch.zeros(_B, self.a_dim).to(self.device)
+        h = self.rnn_s.sample({"x": x}, return_all=False)["h"]
+        h = torch.transpose(h, 0, 1)[:, 0]
+        feed_dict = {"h": h, "s_prev": s_prev, "a": a}
+        s = self.encoder_s.sample(feed_dict, return_all=False)["s"]
+        return s
+
+    def sample_video_from_latent_s(self, loader):
+        return _sample_video_from_latent_s(self, loader)
+
+    def save(self, comment):
+        save_model(self, comment)
+
+    def load(self, comment):
+        load_model(self, comment)
+
 
 def _sample_video_from_latent_s(model, batch):
     device = model.device
@@ -130,7 +219,7 @@ def _sample_video_from_latent_s(model, batch):
     _T, _B = a.size(0), a.size(1)
 
     name = model.__class__.__name__
-    if name == "SSM3":
+    if name == "SSM3" or name == "SSM4":
         s_prev = model.sample_s0(x[0:1])
     else:
         raise NotImplementedError

@@ -1,6 +1,3 @@
-# export CUDA_VISIBLE_DEVICES=0
-# python main.py --model SSM1 --comment awesome
-
 from config import get_args
 from tqdm import tqdm
 from data_loader import PushDataLoader
@@ -23,27 +20,32 @@ def data_loop(epoch, loader, model, T, device, writer, train=True):
 
     for batch in tqdm(loader):
         x, a, itr = batch
+        print(x.shape, a.shape)
         _B = x.size(0)
         x = x.to(device).transpose(0, 1)  # 30,32,3,28,28
         a = a.to(device).transpose(0, 1)  # 30,32,1
 
-        if name == "SSM3":
+        if name == "SSM3" or name == "SSM4":
             s0 = model.sample_s0(x[0:1])
             feed_dict = {"s_prev": s0, "x": x, "a": a}  # TODO: .clone()要る?
         else:
             raise NotImplementedError
 
         if train:
-            # self.distributions.train() is called in model.train()
-            # using forked pixyz. see README.md (TODO)
-            loss, total_norm = model.train(feed_dict, return_total_norm=True)
+            loss, ce, kl, total_norm = model.train_(feed_dict, return_total_norm=True)
             loss = loss.item()
+            ce = ce.item()
+            kl = kl.item()
         else:
-            # self.distributions.eval() is called in model.train()
-            loss = model.test(feed_dict).item()
+            loss, ce, kl = model.test_(feed_dict)
+            loss = loss.item()
+            ce = ce.item()
+            kl = kl.item()
 
         if train and itr % PLOT_SCALAR_INTERVAL == 0:
             writer.add_scalar("loss/itr_train", loss, itr)
+            writer.add_scalar("loss/itr_train_ce", ce, itr)
+            writer.add_scalar("loss/itr_train_kl", kl, itr)
             writer.add_scalar("grad_norm/itr_train", total_norm, itr)
 
         mean_loss += loss * _B
@@ -76,6 +78,8 @@ if __name__ == "__main__":
 
     if args.model == "SSM3":
         model = SSM3(args, device)
+    elif args.model == "SSM4":
+        model = SSM4(args, device)
     else:
         raise NotImplementedError
 
