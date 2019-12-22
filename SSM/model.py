@@ -188,23 +188,23 @@ class SSM3(Model):
 #         self.loss1 = loss
 
 #         # 2
-#         _loss_ce = (
-#             IterativeLoss(
-#                 CrossEntropy(self.encoder_s, self.decoder_s),
-#                 max_iter=args.T,
-#                 series_var=["x", "h", "a"],
-#                 update_value={"s": "s_prev"},
-#             )
-#         )
-#         _loss_kl = (
-#             IterativeLoss(
-#                 KullbackLeibler(self.encoder_s, self.prior_s),
-#                 max_iter=args.T,
-#                 series_var=["x", "h", "a"],
-#                 # update_value={"s": "s_prev"},
-#             )
-#         )
-#         loss = (_loss_ce + _loss_kl).expectation(self.rnn_s).mean()
+        _loss_ce = (
+            IterativeLoss(
+                CrossEntropy(self.encoder_s, self.decoder_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                update_value={"s": "s_prev"},
+            )
+        )
+        _loss_kl = (
+            IterativeLoss(
+                KullbackLeibler(self.encoder_s, self.prior_s),
+                max_iter=args.T,
+                series_var=["x", "h", "a"],
+                # update_value={"s": "s_prev"},
+            )
+        )
+        loss = (_loss_ce + _loss_kl).expectation(self.rnn_s).mean()
 #         self.loss2 = loss
 
         # 3
@@ -223,12 +223,15 @@ class SSM3(Model):
                 KullbackLeibler(self.encoder_s, self.prior_s),
                 max_iter=args.T,
                 series_var=["x", "h", "a"],
-                # update_value={"s": "s_prev"},
+                # update_value={"s": "s_prev"},  # コレつけるとエラー?なにかのヒントかも
+                # File "/root/share/pixyz/pixyz/losses/iteration.py", line 153, in _get_eval
+                #   x_dict.update({value: x_dict[key]})
+                # KeyError: 's'
             )
             .expectation(self.rnn_s)
             .mean()
         )
-        loss = self.loss_ce + self.loss_kl
+#         loss = self.loss_ce + self.loss_kl
 #         loss = self.loss_ce
 #         self.loss3 = loss
 
