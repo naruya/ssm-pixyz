@@ -228,8 +228,8 @@ class SSM3(Model):
             .expectation(self.rnn_s)
             .mean()
         )
-#         loss = self.loss_ce + self.loss_kl
-        loss = self.loss_ce
+        loss = self.loss_ce + self.loss_kl
+#         loss = self.loss_ce
 #         self.loss3 = loss
 
         super(SSM3, self).__init__(
