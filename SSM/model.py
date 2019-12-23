@@ -174,37 +174,37 @@ class SSM3(Model):
         for dist in self.distributions:
             init_weights(dist)
 
-#         # 1
-#         step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
-#             self.encoder_s, self.prior_s
-#         )
-#         _loss = IterativeLoss(
-#             step_loss,
-#             max_iter=args.T,
-#             series_var=["x", "h", "a"],
-#             update_value={"s": "s_prev"},
-#         )
-#         loss = _loss.expectation(self.rnn_s).mean()
+        # 1
+        step_loss = CrossEntropy(self.encoder_s, self.decoder_s) + KullbackLeibler(
+            self.encoder_s, self.prior_s
+        )
+        _loss = IterativeLoss(
+            step_loss,
+            max_iter=args.T,
+            series_var=["x", "h", "a"],
+            update_value={"s": "s_prev"},
+        )
+        loss = _loss.expectation(self.rnn_s).mean()
 #         self.loss1 = loss
 
 #         # 2
-        _loss_ce = (
-            IterativeLoss(
-                CrossEntropy(self.encoder_s, self.decoder_s),
-                max_iter=args.T,
-                series_var=["x", "h", "a"],
-                update_value={"s": "s_prev"},
-            )
-        )
-        _loss_kl = (
-            IterativeLoss(
-                KullbackLeibler(self.encoder_s, self.prior_s),
-                max_iter=args.T,
-                series_var=["x", "h", "a"],
-                # update_value={"s": "s_prev"},
-            )
-        )
-        loss = (_loss_ce + _loss_kl).expectation(self.rnn_s).mean()
+#         _loss_ce = (
+#             IterativeLoss(
+#                 CrossEntropy(self.encoder_s, self.decoder_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 update_value={"s": "s_prev"},
+#             )
+#         )
+#         _loss_kl = (
+#             IterativeLoss(
+#                 KullbackLeibler(self.encoder_s, self.prior_s),
+#                 max_iter=args.T,
+#                 series_var=["x", "h", "a"],
+#                 # update_value={"s": "s_prev"},
+#             )
+#         )
+#         loss = (_loss_ce + _loss_kl).expectation(self.rnn_s).mean()
 #         self.loss2 = loss
 
         # 3
