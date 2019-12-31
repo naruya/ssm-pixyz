@@ -3,8 +3,6 @@ from torch import nn
 from torch.nn import functional as F
 from pixyz.distributions import Normal, Bernoulli, Deterministic
 
-# from torch_utils import Conv2dLSTM
-
 # --------------------------------
 # SSM (base)
 # --------------------------------

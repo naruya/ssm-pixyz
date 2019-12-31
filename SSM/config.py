@@ -12,7 +12,7 @@ def get_args(jupyter=False):
         help="list of CUDA devices (default: [0])",
         default=[0],
     )
-    parser.add_argument("--model", type=str, default="SSM3")
+    parser.add_argument("--model", type=str, default="SSM4")
     parser.add_argument("--comment", type=str, default="debug")
     parser.add_argument("--B", type=int, default=32)  # 32
     parser.add_argument("--T", type=int, default=10)  # 30

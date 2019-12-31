@@ -3,9 +3,9 @@
 from torch import nn
 
 
-def init_weights(distribution):
+def init_weights(model):
     print("---- init weights ----")
-    for m in distribution.modules():
+    for m in model.modules():
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
             nn.init.normal_(m.bias)

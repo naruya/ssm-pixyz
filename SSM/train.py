@@ -2,8 +2,8 @@ from config import get_args
 from tqdm import tqdm
 from model import *
 from data_loader import PushDataLoader
-from torch.utils.tensorboard import SummaryWriter
 from pixyz_utils import save_model
+from torch.utils.tensorboard import SummaryWriter
 
 
 PLOT_SCALAR_INTERVAL = 169
@@ -12,10 +12,13 @@ TEST_INTERVAL = 8  # 256 / 32
 
 
 def data_loop(epoch, loader, model, T, device, writer=None, train=True):
-    mean_loss, mean_loss_ce, mean_loss_kl = 0., 0., 0.
-
     name = model.__class__.__name__
-    prefix = "train" if train else "test"
+    prefix = "train_" if train else "test_"
+
+    if name == "SSM3":
+        mean_loss = 0.
+    elif name == "SSM4":
+        mean_values = {"loss": 0., "ce": 0., "kl": 0.}
 
     for batch in tqdm(loader):
         x, a, itr = batch
@@ -23,69 +26,62 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         x = x.to(device).transpose(0, 1)  # T,B,3,28,28
         a = a.to(device).transpose(0, 1)  # T,B,1
 
-        s0 = model.sample_s0(x[0:1].clone())
-        feed_dict = {"s_prev": s0, "x": x, "a": a}
-
-        if name == "SSM3":
+        if name in ["SSM3",]:  # pixyz.models.Model
+            s0 = model.sample_s0(x[0:1].clone())
+            feed_dict = {"s_prev": s0, "x": x, "a": a}
             if train:
-                loss = model.train(feed_dict).item()
+                loss = model.train(feed_dict)
             else:
-                loss = model.test(feed_dict).item()
+                loss = model.test(feed_dict)
+            loss = loss.item()
             mean_loss += loss * _B
             if train and writer and itr % PLOT_SCALAR_INTERVAL == 0:
-                writer.add_scalar("loss/itr_train", loss, itr)
+                writer.add_scalar("itr/train_loss", loss, itr)
 
-        elif name == "SSM4":
+        elif name in ["SSM4",]:  # nn.Module
+            feed_dict = {"x0": x[0:1], "x": x, "a": a}
             if train:
-                loss, ce, kl = model._train(feed_dict)
-            if train:
-                loss, ce, kl = model._test(feed_dict)
-            loss, ce, kl = loss.item(), ce.item(), kl.item()
-            mean_loss += loss * _B
-            mean_loss_ce += ce * _B
-            mean_loss_kl += kl * _B
-            if train and writer and itr % PLOT_SCALAR_INTERVAL == 0:
-                writer.add_scalar("loss/itr_train", loss, itr)
-                writer.add_scalar("loss/itr_train_ce", ce, itr)
-                writer.add_scalar("loss/itr_train_kl", kl, itr)
+                loss, omake_dict = model.train_(feed_dict)
+            else:
+                loss, omake_dict = model.test_(feed_dict)
+            for k in mean_values.keys():
+                v = omake_dict[k]
+                mean_values[k] += v * _B
+                if train and writer and itr % PLOT_SCALAR_INTERVAL == 0:
+                    writer.add_scalar("itr/train_" + k, v, itr)
 
         if train and itr % TRAIN_INTERVAL == 0:
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
-        break
 
-    if name == "SSM3":
+    if name in ["SSM3",]:
         mean_loss /= loader.N
+        print(mean_loss)
         video = model.sample_video_from_latent_s(batch)
         if writer:
-            writer.add_scalar("loss/" + prefix, mean_loss, epoch)
-            writer.add_video("video/" + prefix, video, epoch)
-        print(mean_loss)
+            writer.add_scalar("epoch/" + prefix + "loss", mean_loss, epoch)
+            writer.add_video("epoch/" + prefix + "video", video, epoch)
 
-    elif name == "SSM4":
-        mean_loss /= loader.N
-        mean_loss_ce /= loader.N
-        mean_loss_kl /= loader.N
-        video = model.sample_video_from_latent_s(batch)
+    elif name in ["SSM4",]:
+        print("loss:", mean_values["loss"] / loader.N)
         if writer:
-            writer.add_scalar("loss/" + prefix, mean_loss, epoch)
-            writer.add_scalar("loss/" + prefix + "_ce", mean_loss_ce, epoch)
-            writer.add_scalar("loss/" + prefix + "_kl", mean_loss_kl, epoch)
-            writer.add_video("video/" + prefix, video, epoch)
-        print(mean_loss)
-        print(mean_loss_ce + mean_loss_kl)
+            for k, v in mean_values.items():
+                v = v / loader.N
+                writer.add_scalar("epoch/" + prefix + k, v, epoch)
+            video = model.sample_video_from_latent_s(batch)
+            writer.add_video("epoch/" + prefix + "video", video, epoch)
 
 
 if __name__ == "__main__":
     args = get_args()
     device = args.device_ids[0]
-    
+
     SEED = args.seed
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
-    
+
     if args.model == "SSM3":
         model = SSM3(args, device)
     elif args.model == "SSM4":
@@ -103,4 +99,3 @@ if __name__ == "__main__":
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
         save_model(model, args.comment)
-        break
