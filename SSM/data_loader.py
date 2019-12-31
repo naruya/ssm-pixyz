@@ -9,6 +9,9 @@ tf.compat.v1.enable_eager_execution()
 
 class PushDataLoader:
     def __init__(self, split, args):
+        SEED = args.seed
+        np.random.seed(SEED)
+
         self.T = args.T
         self.B = args.B
         self.ds, self.info = tfds.load(
@@ -20,7 +23,7 @@ class PushDataLoader:
         )
         self.N = self.info.splits[split].num_examples
         self.L = math.ceil(self.N / self.B)
-        self.ds = self.ds.shuffle(1024).batch(self.B)  # TODO: buffersize, interleave()
+        self.ds = self.ds.shuffle(1024, SEED).batch(self.B)  # TODO: buffersize, interleave()
         self.ds = self.ds.map(
             self.func, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )
@@ -37,8 +40,8 @@ class PushDataLoader:
         )
         a = data["action"]
         _s = np.random.randint(30 - self.T + 1)
-        x = x[:, _s : _s + 10]
-        a = a[:, _s : _s + 10]
+        x = x[:, _s : _s + self.T]
+        a = a[:, _s : _s + self.T]
         return {"video": x, "action": a}
 
     def __iter__(self):

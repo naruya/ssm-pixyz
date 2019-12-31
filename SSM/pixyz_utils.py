@@ -20,8 +20,3 @@ def load_model(model, prefix):
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))
-
-
-# def init_model(model):
-#     for dist in model.distributions:
-#         init_weights(dist)
