@@ -15,7 +15,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
 
-    if name == "SSM5":
+    if name in ["SSM5", "SSM7"]:
         mean_values = {"loss": 0., "ce": 0., "kl": 0.}
 
     for batch in tqdm(loader):
@@ -61,6 +61,8 @@ if __name__ == "__main__":
 
     if args.model == "SSM5":
         model = SSM5(args, device)
+    elif args.model == "SSM7":
+        model = SSM7(args, device)
     else:
         raise NotImplementedError
 
