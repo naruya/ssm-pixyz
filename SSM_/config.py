@@ -12,12 +12,12 @@ def get_args(jupyter=False):
         help="list of CUDA devices (default: [0])",
         default=[0],
     )
-    parser.add_argument("--model", type=str, default="SSM4")
+    parser.add_argument("--model", type=str, default="SSM5")
     parser.add_argument("--comment", type=str, default="debug")
     parser.add_argument("--B", type=int, default=32)  # 32
     parser.add_argument("--T", type=int, default=10)  # 30
-    parser.add_argument("--s_dim", type=int, default=64)  # 64
-    parser.add_argument("--h_dim", type=int, default=256)  # ?
+    parser.add_argument("--s_dim", type=int, default=32)  # 1~inf
+    parser.add_argument("--h_dim", type=int, default=1024)  # 1024
     parser.add_argument("--a_dim", type=int, default=4)  # 4
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
@@ -34,6 +34,8 @@ def get_args(jupyter=False):
         datetime.now().strftime("%b%d_%H-%M-%S")
         + "_"
         + args.model
+        + "_"
+        + "s{}".format(args.s_dim)
         + "_"
         + args.comment,
     )

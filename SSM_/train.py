@@ -15,7 +15,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
 
-    if name == "SSM4":
+    if name == "SSM5":
         mean_values = {"loss": 0., "ce": 0., "kl": 0.}
 
     for batch in tqdm(loader):
@@ -24,7 +24,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         x = x.to(device).transpose(0, 1)  # T,B,3,28,28
         a = a.to(device).transpose(0, 1)  # T,B,1
 
-        feed_dict = {"x0": x[0:1].clone(), "x": x, "a": a}
+        feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
         if train:
             loss, omake_dict = model.train_(feed_dict)
         else:
@@ -59,8 +59,8 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
 
-    if args.model == "SSM4":
-        model = SSM4(args, device)
+    if args.model == "SSM5":
+        model = SSM5(args, device)
     else:
         raise NotImplementedError
 
