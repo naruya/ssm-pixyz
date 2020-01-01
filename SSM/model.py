@@ -116,8 +116,8 @@ class SSM4(nn.Module):
     def sample_s0(self, x):
         return _sample_s0(self, x)
 
-    def sample_video_from_latent_s(self, loader):
-        return _sample_video_from_latent_s(self, loader)
+    def sample_video_from_latent_s(self, batch):
+        return _sample_video_from_latent_s(self, batch)
 
 
 def _train(model, feed_dict):
