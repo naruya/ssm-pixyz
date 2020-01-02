@@ -58,6 +58,26 @@ class Encoder(Deterministic):
         return {"h": h}
 
 
+# class EncoderRNN(Deterministic):
+#     def __init__(self, h_dim):
+#         super(EncoderRNN, self).__init__(cond_var=["x", "hc_prev"], var=["h", "hc"])
+#         self.conv1 = nn.Conv2d(3, 32, 4, stride=2)
+#         self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
+#         self.conv3 = nn.Conv2d(64, 128, 4, stride=2)
+#         self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
+#         self.rnn = torch.nn.LSTMCell(h_dim, h_dim)
+
+#     def forward(self, x, hc_prev):
+#         h_e, c_e = hc_prev
+#         h = F.relu(self.conv1(x))
+#         h = F.relu(self.conv2(h))
+#         h = F.relu(self.conv3(h))
+#         h = F.relu(self.conv4(h))
+#         h = h.view(x.size(0), 1024)
+#         h_e, c_e = self.rnn(h, (h_e, c_e))
+#         return {"h": h_e, "hc": (h_e, c_e)}
+
+
 class Decoder(Normal):
     def __init__(self, s_dim):
         super(Decoder, self).__init__(cond_var=["s"], var=["x"])

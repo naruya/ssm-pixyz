@@ -12,7 +12,7 @@ def get_args(jupyter=False):
         help="list of CUDA devices (default: [0])",
         default=[0],
     )
-    parser.add_argument("--model", type=str, default="SSM5")
+    parser.add_argument("--model", type=str, default="")
     parser.add_argument("--comment", type=str, default="debug")
     parser.add_argument("--B", type=int, default=32)  # 32
     parser.add_argument("--T", type=int, default=10)  # 30
@@ -32,10 +32,10 @@ def get_args(jupyter=False):
     else:
         args = parser.parse_args(args=[])
 
-    if args.model in ["SSM7"]:
-        s = "s{}ss{}".format(args.s_dim, args.ss_dim)
-    else:
+    if args.model in ["SSM5"]:
         s = "s{}".format(args.s_dim)
+    else:
+        s = "s{}ss{}".format(args.s_dim, args.ss_dim)
 
     log_dir = os.path.join(
         args.runs_dir,

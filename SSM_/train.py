@@ -15,8 +15,12 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
 
-    if name in ["SSM5", "SSM7"]:
+    if name in ["SSM5"]:
         mean_values = {"loss": 0., "ce": 0., "kl": 0.}
+    elif name in ["SSM7"]:
+        mean_values = {"loss": 0., "s_loss": 0., "ss_loss": 0., "x_xx_loss": 0.}
+    elif name in ["SSM8"]:
+        mean_values = {"loss": 0., "s_loss": 0., "ss_loss": 0., "x_xx_loss": 0.}
 
     for batch in tqdm(loader):
         x, a, itr = batch
@@ -34,13 +38,14 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             mean_values[k] += v * _B
             if train and writer and itr % PLOT_SCALAR_INTERVAL == 0:
                 writer.add_scalar("itr/train_" + k, v, itr)
+                print(k, v)
 
         if train and itr % TRAIN_INTERVAL == 0:
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
 
-    print("loss:", mean_values["loss"] / loader.N)
+    print("¥nloss:", mean_values["loss"] / loader.N)
 
     if writer:
         for k, v in mean_values.items():
@@ -63,6 +68,8 @@ if __name__ == "__main__":
         model = SSM5(args, device)
     elif args.model == "SSM7":
         model = SSM7(args, device)
+    elif args.model == "SSM8":
+        model = SSM8(args, device)
     else:
         raise NotImplementedError
 
