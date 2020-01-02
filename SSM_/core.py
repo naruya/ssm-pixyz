@@ -96,7 +96,6 @@ class Decoder(Normal):
         h = self.conv4(h)
         return {"loc": h, "scale": 1.0}
 
-
 # --------------------------------
 # SSM7~
 # --------------------------------
