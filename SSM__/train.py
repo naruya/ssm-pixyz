@@ -70,6 +70,10 @@ if __name__ == "__main__":
         model = SSM(args, device, query="action", extra=None)
     elif args.model == "SSM12":
         model = SSM(args, device, query="action", extra="ensemble")
+    elif args.model == "SSM13":
+        model = SSM(args, device, query="state", extra=None)
+    elif args.model == "SSM14":
+        model = SSM(args, device, query="state", extra="residual")
     elif args.model == "SimpleSSM":
         args.s_dim = args.s_dim[0]
         model = SimpleSSM(args, device)

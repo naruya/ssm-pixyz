@@ -4,7 +4,7 @@ import torch
 from torch import nn, optim
 from pixyz.models import Model
 from pixyz.losses import KullbackLeibler, LogProb
-from core import Prior, Posterior, Encoder, Decoder, DecoderEnsemble
+from core import Prior, Posterior, Encoder, Decoder, DecoderEnsemble, DecoderResidual
 from torch.nn.utils import clip_grad_norm_
 from torch_utils import init_weights
 
@@ -105,7 +105,6 @@ class SimpleSSM(Base):
 class SSM(Base):
     def __init__(self, args, device, query, extra=None):
         assert not (extra and len(args.s_dim) > 2), NotImplementedError
-        assert query == "action", NotImplementedError
         assert extra in [None, "ensemble", "residual"], NotImplementedError
         super(SSM, self).__init__()
 
@@ -128,8 +127,8 @@ class SSM(Base):
         for i in range(self.num_states):
             self.keys.append("s_loss[{}]".format(i))
             self.keys.append("x_loss[{}]".format(i))
-        if self.extra:
-            self.keys.append(self.extra + "_loss")
+        if extra == "ensemble":
+            self.keys.append(extra + "_loss")
 
         for i, s_dim in enumerate(self.s_dims):
             if query == "action":
@@ -142,7 +141,8 @@ class SSM(Base):
             self.priors.append(Prior(s_dim, a_dim).to(device))
             self.posteriors.append(Posterior(s_dim, a_dim, self.h_dim).to(device))
             self.encoders.append(Encoder().to(device))
-            self.decoders.append(Decoder(s_dim).to(device))
+            if not extra == "residual":
+                self.decoders.append(Decoder(s_dim).to(device))
             self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
 
@@ -169,8 +169,7 @@ class SSM(Base):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_losss = [0.] * len(self.s_dims)
         x_losss = [0.] * len(self.s_dims)
-        if self.extra:
-            ex_loss = 0.
+        ex_loss = 0.
         _T, _B = x.size(0), x.size(1)
         _x = []
 
@@ -190,8 +189,6 @@ class SSM(Base):
                         feed_dict = {"s_prev": s_prevs[i], "a": a_t, "h": h_t[-1]}
                     else:
                         feed_dict = {"s_prev": s_prevs[i], "a": s_t[i-1], "h": h_t[-1]}
-                else:
-                    assert False, [query, i]
                 s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
 
                 if train:
@@ -199,8 +196,14 @@ class SSM(Base):
                 else:
                     s_t.append(self.priors[i].dist.mean)
 
-                feed_dict = {"s": s_t[-1], "x": x_t}
-                x_losss[i] += - self.x_loss_clss[i].eval(feed_dict).mean()
+            for i in range(self.num_states):
+                if not self.extra == "residual":
+                    feed_dict = {"s": s_t[i], "x": x_t}
+                    x_losss[i] += - self.x_loss_clss[i].eval(feed_dict).mean()
+                else:
+                    feed_dict = {"s": s_t[0], "ss": s_t[1], "x": x_t}
+                    self.ex_core.mode = i
+                    x_losss[i] += - self.ex_loss_cls.eval(feed_dict).mean()
 
             if self.extra == None:
                 _x.append(self.decoders[-1].dist.mean)
@@ -209,15 +212,14 @@ class SSM(Base):
                 ex_loss += - self.ex_loss_cls.eval(feed_dict).mean()
                 _x.append(self.ex_core.dist.mean)
             elif self.extra == "residual":
-                raise NotImplementedError
+                _x.append(self.ex_core.dist.mean)
 
             s_prevs = s_t
 
         loss = 0.
         for i in range(self.num_states):
             loss += s_losss[i] + x_losss[i]
-        if self.extra:
-            loss += ex_loss
+        loss += ex_loss
 
         if sample:
             return _x
@@ -226,7 +228,7 @@ class SSM(Base):
             for i in range(self.num_states):
                 return_dict.update({"s_loss[{}]".format(i): s_losss[i].item()})
                 return_dict.update({"x_loss[{}]".format(i): x_losss[i].item()})
-            if self.extra:
+            if self.extra == "ensemble":
                 return_dict.update({self.extra + "_loss": ex_loss.item()})
             return loss, return_dict
 
@@ -235,16 +237,24 @@ def _sample_s0(model, x0, train):
     device = model.device
     _B = x0.size(0)
     s_prevs = [torch.zeros(_B, s_dim).to(device) for s_dim in model.s_dims]
-    a_t = torch.zeros(_B, model.a_dim).to(device)
+    a_t = []
+    if model.query == "action":
+        for i in range(model.num_states):
+            a_t.append(torch.zeros(_B, model.a_dim).to(device))
+    elif model.query == "state":
+        a_t.append(torch.zeros(_B, model.a_dim).to(device))
+        for i in range(1, model.num_states):
+            a_t.append(torch.zeros(_B, model.s_dims[i-1]).to(device))
+
     h_t, s_t = [], []
     for i in range(model.num_states):
         if train:
             h_t.append(model.encoders[i].sample({"x": x0}, return_all=False)["h"])
-            feed_dict = {"s_prev": s_prevs[i], "a": a_t, "h": h_t[-1]}
+            feed_dict = {"s_prev": s_prevs[i], "a": a_t[i], "h": h_t[-1]}
             s_t.append(model.posteriors[i].sample(feed_dict, return_all=False)["s"])
         else:
             h_t.append(model.encoders[i].sample_mean({"x": x0}))
-            feed_dict = {"s_prev": s_prevs[i], "a": a_t, "h": h_t[-1]}
+            feed_dict = {"s_prev": s_prevs[i], "a": a_t[i], "h": h_t[-1]}
             s_t.append(model.posteriors[i].sample_mean(feed_dict))
     return s_t
 
