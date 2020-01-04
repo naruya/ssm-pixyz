@@ -15,7 +15,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
 
-    summ = model.keyshogehoge
+    summ = dict(zip(model.keys, [0.] * len(keys)))
 
     for batch in tqdm(loader):
         x, a, itr = batch
@@ -59,12 +59,17 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
 
+    print(args.log_dir)
+
+    if args.comment == "debug":
+        writer = None
+    else:
+        writer = SummaryWriter(log_dir=args.log_dir)
+
     if args.model == "SSM11":
-        model = SSM(args, device, query="action", decoder_extra="ensemble")
+        model = SSM(args, device, query="action", decoder_extra=None)
     else:
         raise NotImplementedError
-
-    writer = SummaryWriter(log_dir=args.log_dir)
 
     train_loader = PushDataLoader("train", args)
     test_loader = PushDataLoader("test", args)
