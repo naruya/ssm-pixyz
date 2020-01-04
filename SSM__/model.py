@@ -169,7 +169,8 @@ class SSM(Base):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_losss = [0.] * len(self.s_dims)
         x_losss = [0.] * len(self.s_dims)
-        ex_loss = 0.
+        if self.extra:
+            ex_loss = 0.
         _T, _B = x.size(0), x.size(1)
         _x = []
 
@@ -212,9 +213,11 @@ class SSM(Base):
 
             s_prevs = s_t
 
-        loss = ex_loss
+        loss = 0.
         for i in range(self.num_states):
             loss += s_losss[i] + x_losss[i]
+        if self.extra:
+            loss += ex_loss
 
         if sample:
             return _x
