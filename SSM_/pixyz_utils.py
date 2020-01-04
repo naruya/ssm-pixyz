@@ -13,9 +13,9 @@ def save_model(model, comment):
     torch.save(model.optimizer.state_dict(), os.path.join(path, "opt.pt"))
 
 
-def load_model(model, prefix):
+def load_model(model, comment, time):
     name = model.__class__.__name__
-    path = os.path.join("model", name, prefix)
+    path = os.path.join("model", name + "_" + comment, time)
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))

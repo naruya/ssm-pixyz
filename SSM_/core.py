@@ -112,8 +112,11 @@ class DecoderEnsemble(Normal):
         self.conv4 = nn.ConvTranspose2d(32, 3, 6, stride=2)      # 64x64
 
     def forward(self, s, ss):
+        print("caution!!!")
         h1 = F.relu(self.fc1(s))
         h2 = F.relu(self.fc2(ss))
+#         h1 = self.fc1(s)
+#         h2 = self.fc2(ss)   ######################################
         h = torch.cat((h1, h2), 1)
         h = h.view(s.size(0), 2048, 1, 1)
         h = F.relu(self.conv1(h))

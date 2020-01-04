@@ -508,6 +508,7 @@ def _sample_s0(encoder, posterior, s_dim, a_dim, device, x0):
 
 
 def _sample_video(sample_s0, prior, decoder, device, name, batch):
+    # with torch.no_grad():
     x, a, _ = batch
     x = x.to(device).transpose(0, 1)  # TxB
     a = a.to(device).transpose(0, 1)  # TxB
