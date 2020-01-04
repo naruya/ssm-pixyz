@@ -1,12 +1,10 @@
 from config import get_args
 from tqdm import tqdm
-from model import SSM
+from model import *
 from data_loader import PushDataLoader
 from pixyz_utils import save_model
 from torch.utils.tensorboard import SummaryWriter
 import torch
-import time
-
 
 PLOT_SCALAR_INTERVAL = 169
 TRAIN_INTERVAL = 1352  # 43264 / 32
@@ -43,7 +41,6 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             break
         break
 
-    time.sleep(0.5)
     print("loss:", summ["loss"] / loader.N)
 
     if writer:
@@ -72,6 +69,9 @@ if __name__ == "__main__":
 
     if args.model == "SSM11":
         model = SSM(args, device, query="action", extra=None)
+    elif args.model == "SSM12":
+        args.s_dim = args.s_dim[0]
+        model = SimpleSSM(args, device)
     else:
         raise NotImplementedError
 

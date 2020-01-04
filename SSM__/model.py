@@ -29,58 +29,84 @@ class Base(nn.Module):
         return _test(self, feed_dict)
 
 
-# class SimpleSSM(Base):
-#     def __init__(self, args, device):
-#         super(SimpleSSM, self).__init__()
-#         self.device = device
-#         self.s_dim = s_dim = args.s_dim
-#         self.a_dim = a_dim = args.a_dim
-#         self.h_dim = h_dim = args.h_dim
+class SimpleSSM(Base):
+    def __init__(self, args, device):
+        super(SimpleSSM, self).__init__()
+        self.device = device
+        self.s_dim = s_dim = args.s_dim
+        self.a_dim = a_dim = args.a_dim
+        self.h_dim = h_dim = args.h_dim
+        self.keys = ["loss", "x_loss[0]", "s_loss[0]"]
 
-#         self.prior_s = Prior(s_dim, a_dim).to(device)
-#         self.posterior_s = Posterior(s_dim, a_dim, h_dim).to(device)
-#         self.encoder_s = Encoder().to(device)
-#         self.decoder_s = Decoder(s_dim).to(device)
+        self.prior = Prior(s_dim, a_dim).to(device)
+        self.posterior = Posterior(s_dim, a_dim, h_dim).to(device)
+        self.encoder = Encoder().to(device)
+        self.decoder = Decoder(s_dim).to(device)
 
-#         self.distributions = nn.ModuleList([
-#             self.prior_s,
-#             self.posterior_s,
-#             self.encoder_s,
-#             self.decoder_s,
-#         ])
+        self.distributions = nn.ModuleList([
+            self.prior,
+            self.posterior,
+            self.encoder,
+            self.decoder,
+        ])
 
-#         init_weights(self.distributions)
+        init_weights(self.distributions)
 
-#         self.s_loss_cls = KullbackLeibler(self.posterior_s, self.prior_s)  # TODO: 自分で書いてみる
-#         self.optimizer = optim.Adam(self.distributions.parameters())
+        self.s_loss_cls = KullbackLeibler(self.posterior, self.prior)
+        self.x_loss_cls = LogProb(self.decoder)
+        self.optimizer = optim.Adam(self.distributions.parameters())
 
-#     def forward(self, feed_dict, train):
-#         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
-#         s_loss, x_loss = 0., 0.
-#         s_prev = self.sample_s0(x0)
-#         _T, _B = x.size(0), x.size(1)
-#         for t in range(_T):
-#             x_t = x[t]
-#             a_t = a[t]
+    def forward(self, feed_dict, train, sample=False):
+        x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
+        s_loss, x_loss = 0., 0.
+        s_prev = self.sample_s0(x0, train)
+        _T, _B = x.size(0), x.size(1)
+        _x = []
+        
+        for t in range(_T):
+            x_t, a_t = x[t], a[t]
 
-#             h_t = self.encoder_s.sample({"x": x_t}, return_all=False)["h"]
-#             feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
-#             s_loss += self.s_loss_cls.eval(feed_dict).mean()
+            h_t = self.encoder.sample({"x": x_t}, return_all=False)["h"]
+            feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
+            s_loss += self.s_loss_cls.eval(feed_dict).mean()
+            if train:
+                s_t = self.posterior.dist.rsample()
+            else:
+                s_t = self.prior.dist.mean
+            feed_dict = {"s": s_t, "x": x_t}
+            x_loss += - self.decoder.log_prob().eval(feed_dict).mean()
+            _x.append(self.decoder.dist.mean)
+            s_prev = s_t
 
-#             s_t = self.posterior_s.dist.rsample()
-#             feed_dict = {"s": s_t, "x": x_t}
-#             x_loss += - self.decoder_s.log_prob().eval(feed_dict).mean()
+        loss = s_loss + x_loss
 
-#             s_prev = s_t
+        if sample:
+            return x
+        else:
+            return loss, {"loss": loss.item(),
+                          "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item()}
 
-#         loss = s_loss + x_loss
-#         return loss, {"loss": loss.item(), "ce": x_loss.item(), "kl": s_loss.item()}
+    def sample_s0(self, x0, train):
+        device = self.device
+        _B = x0.size(0)
+        s_prev = torch.zeros(_B, self.s_dim).to(device)
+        a_t = torch.zeros(_B, self.a_dim).to(device)
+        if train:
+            h_t = self.encoder.sample({"x": x0}, return_all=False)["h"]
+            feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
+            s_t = self.posterior.sample(feed_dict, return_all=False)["s"]
+        else:
+            h_t = self.encoder.sample_mean({"x": x0})
+            feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
+            s_t = self.posterior.sample_mean(feed_dict)
+        return s_t
 
 
 class SSM(Base):
     def __init__(self, args, device, query, extra=None):
         assert not (extra and len(args.s_dim) > 2), NotImplementedError
         assert query == "action", NotImplementedError
+        assert extra in [None, "ensemble", "residual"], NotImplementedError
         super(SSM, self).__init__()
 
         self.device = device
@@ -88,7 +114,7 @@ class SSM(Base):
         self.a_dim = args.a_dim
         self.h_dim = args.h_dim
         self.num_states = len(self.s_dims)
-        self.extra = extra        
+        self.extra = extra
         self.query = query
 
         self.priors = []
@@ -97,6 +123,13 @@ class SSM(Base):
         self.decoders = []
         self.s_loss_clss = []
         self.x_loss_clss = []
+        
+        self.keys = ["loss"]
+        for i in range(self.num_states):
+            self.keys.append("s_loss[{}]".format(i))
+            self.keys.append("x_loss[{}]".format(i))
+        if self.extra:
+            self.keys.append(self.extra + "_loss")
 
         for i, s_dim in enumerate(self.s_dims):
             if query == "action":
@@ -131,13 +164,6 @@ class SSM(Base):
         self.distributions = nn.ModuleList(distributions)
         init_weights(self.distributions)
         self.optimizer = optim.Adam(self.distributions.parameters())
-        
-        self.keys = ["loss"]
-        for i in range(self.num_states):
-            self.keys.append("s_loss[{}]".format(i))
-            self.keys.append("x_loss[{}]".format(i))
-        if self.extra:
-            self.keys.append(self.extra + "_loss")
 
     def forward(self, feed_dict, train, sample=False):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
@@ -150,10 +176,8 @@ class SSM(Base):
         s_prevs = self.sample_s0(x0, train)
 
         for t in range(_T):
-            x_t = x[t]
-            a_t = a[t]
-            h_t = []
-            s_t = []
+            x_t, a_t = x[t], a[t]
+            h_t, s_t = [], []
 
             for i in range(self.num_states):
                 h_t.append(self.encoders[i].sample({"x": x_t}, return_all=False)["h"])
@@ -209,8 +233,7 @@ def _sample_s0(model, x0, train):
     _B = x0.size(0)
     s_prevs = [torch.zeros(_B, s_dim).to(device) for s_dim in model.s_dims]
     a_t = torch.zeros(_B, model.a_dim).to(device)
-    h_t = []
-    s_t = []
+    h_t, s_t = [], []
     for i in range(model.num_states):
         if train:
             h_t.append(model.encoders[i].sample({"x": x0}, return_all=False)["h"])
