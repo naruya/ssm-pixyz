@@ -26,9 +26,10 @@ def get_args(jupyter=False, args=None):
         else:
             args = parser.parse_args([])
 
-    s_dim = ""
-    for i, d in enumerate(args.s_dim):
-        s_dim += "s" * (i+1) + str(d)
+    s_dim = "s" + str(args.s_dim[0])
+    if len(args.s_dim) > 1:
+        for i, d in enumerate(args.s_dim[1:]):
+            s_dim += "-" + str(d)
 
     log_dir = os.path.join(
         args.runs_dir,

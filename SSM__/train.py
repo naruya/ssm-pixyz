@@ -4,6 +4,8 @@ from model import SSM
 from data_loader import PushDataLoader
 from pixyz_utils import save_model
 from torch.utils.tensorboard import SummaryWriter
+import torch
+import time
 
 
 PLOT_SCALAR_INTERVAL = 169
@@ -15,7 +17,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
 
-    summ = dict(zip(model.keys, [0.] * len(keys)))
+    summ = dict(zip(model.keys, [0.] * len(model.keys)))
 
     for batch in tqdm(loader):
         x, a, itr = batch
@@ -39,8 +41,10 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
+        break
 
-    print("\nloss:", summ["loss"] / loader.N)
+    time.sleep(0.5)
+    print("loss:", summ["loss"] / loader.N)
 
     if writer:
         for k, v in summ.items():
@@ -67,7 +71,7 @@ if __name__ == "__main__":
         writer = SummaryWriter(log_dir=args.log_dir)
 
     if args.model == "SSM11":
-        model = SSM(args, device, query="action", decoder_extra=None)
+        model = SSM(args, device, query="action", extra=None)
     else:
         raise NotImplementedError
 
@@ -78,4 +82,4 @@ if __name__ == "__main__":
         print(epoch)
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-        save_model(model, args.comment)
+        save_model(model)

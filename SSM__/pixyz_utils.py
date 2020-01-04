@@ -6,7 +6,7 @@ from datetime import datetime
 def save_model(model):
     name = model.__class__.__name__
     time = datetime.now().strftime("%b%d_%H-%M-%S")
-    path = os.path.join("model", name + "_" + comment, time)
+    path = os.path.join("model", name, time)
     os.makedirs(path, exist_ok=True)
     for i, dist in enumerate(model.distributions):
         torch.save(dist.state_dict(), os.path.join(path, "dist" + str(i) + ".pt"))
