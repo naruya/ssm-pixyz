@@ -144,7 +144,8 @@ class SSM(Base):
             if not extra == "residual":
                 self.decoders.append(Decoder(s_dim).to(device))
             self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
-            self.x_loss_clss.append(LogProb(self.decoders[-1]))
+            if not extra == "residual":
+                self.x_loss_clss.append(LogProb(self.decoders[-1]))
 
         distributions = []
         distributions.extend(self.priors)

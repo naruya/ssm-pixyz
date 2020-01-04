@@ -1,4 +1,4 @@
-CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=16 python train.py --model SSM14 --s_dim 256 512 --comment debug
+CUDA_VISIBLE_DEVICES=1 OMP_NUM_THREADS=16 python train.py --model SSM14 --s_dim 256 512 --comment res
 # CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM13 --s_dim 256 512 --comment hie
 # CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM12 --s_dim 256 512 --comment ens
 # CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=16 python train.py --model SimpleSSM --s_dim 1024
