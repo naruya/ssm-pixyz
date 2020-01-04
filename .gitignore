@@ -1,6 +1,7 @@
 logs/
 runs*/
 model/
+.nfs*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
