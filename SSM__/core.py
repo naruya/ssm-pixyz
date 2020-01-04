@@ -17,7 +17,7 @@ MIN_STDDEV = 1e-5
 
 class Prior(Normal):
     def __init__(self, s_dim, a_dim):
-        print("Prior(s_dim={}, a_dim={})".format(s_dim, a_dim))
+        print("- Prior(s_dim={}, a_dim={})".format(s_dim, a_dim))
         super(Prior, self).__init__(cond_var=["s_prev", "a"], var=["s"])
         self._min_stddev = MIN_STDDEV
         self.enc_a = nn.Linear(a_dim, s_dim)
@@ -35,7 +35,7 @@ class Prior(Normal):
 
 class Posterior(Normal):
     def __init__(self, s_dim, a_dim, h_dim):
-        print("Posterior(s_dim={}, a_dim={}, h_dim={})".format(s_dim, a_dim, h_dim))
+        print("- Posterior(s_dim={}, a_dim={}, h_dim={})".format(s_dim, a_dim, h_dim))
         super(Posterior, self).__init__(cond_var=["s_prev", "a", "h"], var=["s"])
         self._min_stddev = MIN_STDDEV
         self.enc_a = nn.Linear(a_dim, s_dim)
@@ -53,7 +53,7 @@ class Posterior(Normal):
 
 class Encoder(Deterministic):
     def __init__(self):
-        print("Encoder()".format())
+        print("- Encoder()".format())
         super(Encoder, self).__init__(cond_var=["x"], var=["h"])
         self.conv1 = nn.Conv2d(3, 32, 4, stride=2)
         self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
@@ -71,7 +71,7 @@ class Encoder(Deterministic):
 
 class Decoder(Normal):
     def __init__(self, s_dim):
-        print("Decoder(s_dim={})".format(s_dim))
+        print("- Decoder(s_dim={})".format(s_dim))
         super(Decoder, self).__init__(cond_var=["s"], var=["x"])
         self.fc = nn.Linear(s_dim, 1024)
         self.conv1 = nn.ConvTranspose2d(1024, 128, 5, stride=2)  # 5x5
@@ -96,7 +96,7 @@ class Decoder(Normal):
 
 class DecoderEnsemble(Normal):
     def __init__(self, s_dim, ss_dim):
-        print("DecoderEnsemble(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
+        print("- DecoderEnsemble(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
         super(DecoderEnsemble, self).__init__(cond_var=["s", "ss"], var=["x"])
         self.fc1 = nn.Linear(s_dim, 1024)
         self.fc2 = nn.Linear(ss_dim, 1024)
@@ -119,5 +119,5 @@ class DecoderEnsemble(Normal):
 
 class DecoderResidual(Normal):
     def __init__(self, s_dim, ss_dim):
-        print("DecoderResidual(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
+        print("- DecoderResidual(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
         pass

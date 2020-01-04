@@ -39,7 +39,6 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             break
         if not train and itr % TEST_INTERVAL == 0:
             break
-        break
 
     print("loss:", summ["loss"] / loader.N)
 
@@ -47,7 +46,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         for k, v in summ.items():
             v = v / loader.N
             writer.add_scalar("epoch/" + prefix + k, v, epoch)
-        video = model.sample_video(feed_dict)
+        video = model.sample_x(feed_dict)
         writer.add_video("epoch/" + prefix + "video", video, epoch)
 
 
@@ -69,7 +68,7 @@ if __name__ == "__main__":
 
     if args.model == "SSM11":
         model = SSM(args, device, query="action", extra=None)
-    elif args.model == "SSM12":
+    elif args.model == "SimpleSSM":
         args.s_dim = args.s_dim[0]
         model = SimpleSSM(args, device)
     else:

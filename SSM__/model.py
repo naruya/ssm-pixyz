@@ -81,7 +81,7 @@ class SimpleSSM(Base):
         loss = s_loss + x_loss
 
         if sample:
-            return x
+            return _x
         else:
             return loss, {"loss": loss.item(),
                           "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item()}
