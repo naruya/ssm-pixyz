@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from pixyz.distributions import Normal, Bernoulli, Deterministic
 
 
-MIN_STDDEV = 0.  # 1e-5
+MIN_STDDEV = 1e-5
 
 
 # --------------------------------
@@ -29,25 +29,28 @@ class Prior(Normal):
         a = self.enc_a(a)
         h = torch.cat((s_prev, a), 1)
         h = F.relu(self.fc1(h))
-        return {"loc": self.fc21(h) + s_prev,
+        return {"loc": self.fc21(h),
                 "scale": F.softplus(self.fc22(h)) + self._min_stddev}
 
 
 class Posterior(Normal):
-    def __init__(self, s_dim, a_dim, h_dim):
+    def __init__(self, s_dim, a_dim, h_dim, prior):
         print("- Posterior(s_dim={}, a_dim={}, h_dim={})".format(s_dim, a_dim, h_dim))
         super(Posterior, self).__init__(cond_var=["s_prev", "a", "h"], var=["s"])
         self._min_stddev = MIN_STDDEV
-        self.enc_a = nn.Linear(a_dim, s_dim)
+        self.prior = prior
+        # self.enc_a = nn.Linear(a_dim, s_dim)
         self.fc1 = nn.Linear(s_dim * 2 + h_dim, s_dim * 2)
         self.fc21 = nn.Linear(s_dim * 2, s_dim)
         self.fc22 = nn.Linear(s_dim * 2, s_dim)
 
     def forward(self, s_prev, a, h):
-        a = self.enc_a(a)
-        h = torch.cat((s_prev, a, h), 1)
+        # a = self.enc_a(a)
+        pri = self.prior(s_prev, a)
+        # h = torch.cat((s_prev, a, h), 1)
+        h = torch.cat((pri["loc"], pri["scale"], h), 1)
         h = F.relu(self.fc1(h))
-        return {"loc": self.fc21(h) + s_prev,
+        return {"loc": self.fc21(h),
                 "scale": F.softplus(self.fc22(h)) + self._min_stddev}
 
 
