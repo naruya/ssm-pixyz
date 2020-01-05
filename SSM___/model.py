@@ -36,7 +36,7 @@ class SimpleSSM(Base):
         self.s_dim = s_dim = args.s_dim
         self.a_dim = a_dim = args.a_dim
         self.h_dim = h_dim = args.h_dim
-        self.keys = ["loss", "x_loss[0]", "s_loss[0]"]
+        self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
         self.posterior = Posterior(s_dim, a_dim, h_dim, self.prior).to(device)
@@ -83,7 +83,7 @@ class SimpleSSM(Base):
         if sample:
             return _x
         else:
-            return loss, {"loss": loss.item(),
+            return loss, {"loss": loss.item(), "x_loss": x_loss.item(),
                           "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item()}
 
     def sample_s0(self, x0, train):
@@ -231,6 +231,11 @@ class SSM(Base):
                 return_dict.update({"x_loss[{}]".format(i): x_losss[i].item()})
             if self.extra == "ensemble":
                 return_dict.update({self.extra + "_loss": ex_loss.item()})
+                return_dict.update({"x_loss": ex_loss.item()})
+            elif self.extra == "residual":
+                return_dict.update({"x_loss": x_losss[-1].item()})
+            else:
+                return_dict.update({"x_loss": x_losss[-1].item()})
             return loss, return_dict
 
 
