@@ -14,40 +14,53 @@ MIN_STDDEV = 1e-5
 # basic
 # --------------------------------
 
+# cond_var=["s_prev", "a_list"] ?
+
 
 class Prior(Normal):
-    def __init__(self, s_dim, a_dim):
-        print("- Prior(s_dim={}, a_dim={})".format(s_dim, a_dim))
-        super(Prior, self).__init__(cond_var=["s_prev", "a"], var=["s"])
+    def __init__(self, s_dim, a_dim, aa_dim=None):
+        if not aa_dim:
+            super(Prior, self).__init__(cond_var=["s_prev", "a"], var=["s"])
+        else:
+            super(Prior, self).__init__(cond_var=["s_prev", "a", "aa"], var=["s"])
+
         self._min_stddev = MIN_STDDEV
         self.enc_a = nn.Linear(a_dim, s_dim)
-        self.fc1 = nn.Linear(s_dim * 2, s_dim * 2)
+        if not aa_dim:
+            self.fc1 = nn.Linear(s_dim * 2, s_dim * 2)
+        else:
+            self.enc_aa = nn.Linear(aa_dim, s_dim)
+            self.fc1 = nn.Linear(s_dim * 3, s_dim * 2)
         self.fc21 = nn.Linear(s_dim * 2, s_dim)
         self.fc22 = nn.Linear(s_dim * 2, s_dim)
 
-    def forward(self, s_prev, a):
+    def forward(self, s_prev, a, aa=None):
         a = self.enc_a(a)
-        h = torch.cat((s_prev, a), 1)
+        if not aa:
+            h = torch.cat((s_prev, a), 1)
+        else:
+            aa = self.enc_aa(aa)
+            h = torch.cat((s_prev, a, aa), 1)
         h = F.relu(self.fc1(h))
         return {"loc": self.fc21(h),
                 "scale": F.softplus(self.fc22(h)) + self._min_stddev}
 
 
 class Posterior(Normal):
-    def __init__(self, s_dim, a_dim, h_dim, prior):
-        print("- Posterior(s_dim={}, a_dim={}, h_dim={})".format(s_dim, a_dim, h_dim))
-        super(Posterior, self).__init__(cond_var=["s_prev", "a", "h"], var=["s"])
+    def __init__(self, prior, h_dim, s_dim, a_dim, aa_dim=None):
+        if not aa_dim:
+            super(Posterior, self).__init__(cond_var=["s_prev", "a", "h"], var=["s"])
+        else:
+            super(Posterior, self).__init__(cond_var=["s_prev", "a", "aa", "h"], var=["s"])
+
         self._min_stddev = MIN_STDDEV
         self.prior = prior
-        # self.enc_a = nn.Linear(a_dim, s_dim)
         self.fc1 = nn.Linear(s_dim * 2 + h_dim, s_dim * 2)
         self.fc21 = nn.Linear(s_dim * 2, s_dim)
         self.fc22 = nn.Linear(s_dim * 2, s_dim)
 
-    def forward(self, s_prev, a, h):
-        # a = self.enc_a(a)
-        pri = self.prior(s_prev, a)
-        # h = torch.cat((s_prev, a, h), 1)
+    def forward(self, s_prev, a, aa=None, h=None):
+        pri = self.prior(s_prev, a, aa)
         h = torch.cat((pri["loc"], pri["scale"], h), 1)
         h = F.relu(self.fc1(h))
         return {"loc": self.fc21(h),
@@ -56,7 +69,6 @@ class Posterior(Normal):
 
 class Encoder(Deterministic):
     def __init__(self):
-        print("- Encoder()".format())
         super(Encoder, self).__init__(cond_var=["x"], var=["h"])
         self.conv1 = nn.Conv2d(3, 32, 4, stride=2)
         self.conv2 = nn.Conv2d(32, 64, 4, stride=2)
@@ -64,17 +76,16 @@ class Encoder(Deterministic):
         self.conv4 = nn.Conv2d(128, 256, 4, stride=2)
 
     def forward(self, x):
-        h = F.relu(self.conv1(x))
-        h = F.relu(self.conv2(h))
-        h = F.relu(self.conv3(h))
-        h = F.relu(self.conv4(h))
+        h = F.relu(self.conv1(x))  # 31x31
+        h = F.relu(self.conv2(h))  # 14x14
+        h = F.relu(self.conv3(h))  # 6x6
+        h = F.relu(self.conv4(h))  # 2x2
         h = h.view(x.size(0), 1024)
         return {"h": h}
 
 
 class Decoder(Normal):
     def __init__(self, s_dim):
-        print("- Decoder(s_dim={})".format(s_dim))
         super(Decoder, self).__init__(cond_var=["s"], var=["x"])
         self.fc = nn.Linear(s_dim, 1024)
         self.conv1 = nn.ConvTranspose2d(1024, 128, 5, stride=2)  # 5x5
@@ -99,7 +110,6 @@ class Decoder(Normal):
 
 class DecoderEnsemble(Normal):
     def __init__(self, s_dim, ss_dim):
-        print("- DecoderEnsemble(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
         super(DecoderEnsemble, self).__init__(cond_var=["s", "ss"], var=["x"])
         self.fc1 = nn.Linear(s_dim, 1024)
         self.fc2 = nn.Linear(ss_dim, 1024)
@@ -122,7 +132,6 @@ class DecoderEnsemble(Normal):
 
 class DecoderResidual(Normal):
     def __init__(self, s_dim, ss_dim):
-        print("- DecoderResidual(s_dim={}, ss_dim={})".format(s_dim, ss_dim))
         super(DecoderResidual, self).__init__(cond_var=["s", "ss"], var=["x"])
         self.mode = None
         self.fc1 = nn.Linear(s_dim, 1024)

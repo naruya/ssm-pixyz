@@ -31,9 +31,10 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         for k in summ.keys():
             v = omake_dict[k]
             summ[k] += v * _B
-            if train and writer and itr % PLOT_SCALAR_INTERVAL == 0:
-                writer.add_scalar("itr/train_" + k, v, itr)
+            if train and itr % PLOT_SCALAR_INTERVAL == 0:
                 print(k, v)
+                if writer:
+                    writer.add_scalar("itr/train_" + k, v, itr)
 
         if train and itr % TRAIN_INTERVAL == 0:
             break

@@ -39,7 +39,7 @@ class SimpleSSM(Base):
         self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
-        self.posterior = Posterior(s_dim, a_dim, h_dim, self.prior).to(device)
+        self.posterior = Posterior(self.prior, h_dim, s_dim, a_dim).to(device)
         self.encoder = Encoder().to(device)
         self.decoder = Decoder(s_dim).to(device)
 
@@ -62,7 +62,7 @@ class SimpleSSM(Base):
         s_prev = self.sample_s0(x0, train)
         _T, _B = x.size(0), x.size(1)
         _x = []
-        
+
         for t in range(_T):
             x_t, a_t = x[t], a[t]
 
@@ -123,7 +123,7 @@ class SSM(Base):
         self.s_loss_clss = []
         self.x_loss_clss = []
         
-        self.keys = ["loss"]
+        self.keys = ["loss", "x_loss"]
         for i in range(self.num_states):
             self.keys.append("s_loss[{}]".format(i))
             self.keys.append("x_loss[{}]".format(i))
@@ -139,7 +139,7 @@ class SSM(Base):
                 else:
                     a_dim = self.s_dims[i-1]
             self.priors.append(Prior(s_dim, a_dim).to(device))
-            self.posteriors.append(Posterior(s_dim, a_dim, self.h_dim).to(device))
+            self.posterior = Posterior(self.prior, h_dim, s_dim, a_dim).to(device)
             self.encoders.append(Encoder().to(device))
             if not extra == "residual":
                 self.decoders.append(Decoder(s_dim).to(device))
@@ -238,6 +238,10 @@ class SSM(Base):
                 return_dict.update({"x_loss": x_losss[-1].item()})
             return loss, return_dict
 
+
+# --------------------------------
+# default
+# --------------------------------
 
 def _sample_s0(model, x0, train):
     device = model.device
