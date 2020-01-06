@@ -258,7 +258,7 @@ def _sample_s0(model, x0, train):
         for i in range(model.num_states):
             a_t.append(torch.zeros(_B, model.a_dim).to(device))
     if "s" in model.query:
-        aa_t.append(torch.zeros(_B, model.a_dim).to(device))
+        aa_t.append(None)
         for i in range(1, model.num_states):
             aa_t.append(torch.zeros(_B, model.s_dims[i-1]).to(device))
 
@@ -273,7 +273,10 @@ def _sample_s0(model, x0, train):
         if "a" in model.query:
             feed_dict.update({"a": a_t[i]})
         if "s" in model.query:
-            feed_dict.update({"aa": aa_t[i]})
+            if i == 0 and not "a" in model.query:
+                feed_dict.update({"aa": a_t[i]})
+            else:
+                feed_dict.update({"aa": aa_t[i]})
 
         if train:
             s_t.append(model.posteriors[i].sample(feed_dict, return_all=False)["s"])
