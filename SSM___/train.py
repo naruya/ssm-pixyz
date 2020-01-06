@@ -68,13 +68,15 @@ if __name__ == "__main__":
         writer = SummaryWriter(log_dir=args.log_dir)
 
     if args.model == "SSM11":
-        model = SSM(args, device, query="action", extra=None)
+        model = SSM(args, device, query=["a"], extra=None)
     elif args.model == "SSM12":
-        model = SSM(args, device, query="action", extra="ensemble")
+        model = SSM(args, device, query=["a"], extra="ensemble")
     elif args.model == "SSM13":
-        model = SSM(args, device, query="state", extra=None)
+        model = SSM(args, device, query=["s"], extra=None)
     elif args.model == "SSM14":
-        model = SSM(args, device, query="state", extra="residual")
+        model = SSM(args, device, query=["s"], extra="residual")
+    elif args.model == "SSM15":
+        model = SSM(args, device, query=["a", "s"], extra=None)
     elif args.model == "SimpleSSM":
         args.s_dim = args.s_dim[0]
         model = SimpleSSM(args, device)

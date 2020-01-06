@@ -4,7 +4,7 @@ from torch import nn
 
 
 def init_weights(model):
-    # print("---- init weights ----")
+    print("---- init weights ----")
     for m in model.modules():
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
@@ -22,7 +22,6 @@ def init_weights(model):
             nn.init.constant_(m.weight, 1)
             nn.init.constant_(m.bias, 0)
         else:
-            # print("  ", type(m))
+            print("  ", type(m))
             continue
-        # print("ok", type(m))
-
+        print("ok", type(m))

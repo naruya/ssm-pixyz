@@ -36,7 +36,7 @@ class Prior(Normal):
 
     def forward(self, s_prev, a, aa=None):
         a = self.enc_a(a)
-        if not aa:
+        if aa is None:
             h = torch.cat((s_prev, a), 1)
         else:
             aa = self.enc_aa(aa)
