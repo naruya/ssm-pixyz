@@ -4,6 +4,8 @@ import torch
 from torch import nn, optim
 from pixyz.models import Model
 from pixyz.losses import KullbackLeibler, LogProb
+from torch.distributions import Normal
+from torch.distributions.kl import kl_divergence
 from core import Prior, Posterior, Encoder, Decoder
 from torch.nn.utils import clip_grad_norm_
 from torch_utils import init_weights
@@ -36,7 +38,7 @@ class SimpleSSM(Base):
         self.s_dim = s_dim = args.s_dim
         self.a_dim = a_dim = args.a_dim
         self.h_dim = h_dim = args.h_dim
-        self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs", "s_std"]
+        self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs[0]", "s_std[0]", "s_aux_loss[0]"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
         self.posterior = Posterior(self.prior, h_dim, s_dim, a_dim).to(device)
@@ -52,13 +54,14 @@ class SimpleSSM(Base):
 
         init_weights(self.distributions)
 
+        self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
         self.s_loss_cls = KullbackLeibler(self.posterior, self.prior)
         self.x_loss_cls = LogProb(self.decoder)
         self.optimizer = optim.Adam(self.distributions.parameters())
 
     def forward(self, feed_dict, train, sample=False):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
-        s_loss, x_loss = 0., 0.
+        s_loss, x_loss, s_aux_loss = 0., 0., 0.
         s_abs, s_std = 0., 0.
         s_prev = self.sample_s0(x0, train)
         _T, _B = x.size(0), x.size(1)
@@ -70,6 +73,7 @@ class SimpleSSM(Base):
             h_t = self.encoder.sample({"x": x_t}, return_all=False)["h"]
             feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
             s_loss += self.s_loss_cls.eval(feed_dict).mean()
+            s_aux_loss += kl_divergence(self.posterior.dist, self.prior01).mean()
             if train:
                 s_t = self.posterior.dist.rsample()
                 s_abs += self.posterior.dist.mean.abs().mean()
@@ -83,14 +87,15 @@ class SimpleSSM(Base):
             _x.append(self.decoder.dist.mean)
             s_prev = s_t
 
-        loss = s_loss + x_loss
+        loss = s_loss + x_loss + s_aux_loss
 
         if sample:
             return _x
         else:
             return loss, {"loss": loss.item(), "x_loss": x_loss.item(),
                           "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item(),
-                          "s_abs": s_abs.item(), "s_std": s_std.item()}
+                          "s_aux_loss[0]": s_aux_loss.item(),
+                          "s_abs[0]": s_abs.item(), "s_std[0]": s_std.item()}
 
     def sample_s0(self, x0, train):
         device = self.device
