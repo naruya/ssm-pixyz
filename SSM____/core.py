@@ -108,49 +108,49 @@ class Decoder(Normal):
 # --------------------------------
 
 
-class DecoderEnsemble(Normal):
-    def __init__(self, s_dim, ss_dim):
-        super(DecoderEnsemble, self).__init__(cond_var=["s", "ss"], var=["x"])
-        self.fc1 = nn.Linear(s_dim, 1024)
-        self.fc2 = nn.Linear(ss_dim, 1024)
-        self.conv1 = nn.ConvTranspose2d(2048, 128, 5, stride=2)  # 5x5
-        self.conv2 = nn.ConvTranspose2d(128, 64, 5, stride=2)    # 13x13
-        self.conv3 = nn.ConvTranspose2d(64, 32, 6, stride=2)     # 30x30
-        self.conv4 = nn.ConvTranspose2d(32, 3, 6, stride=2)      # 64x64
+# class DecoderEnsemble(Normal):
+#     def __init__(self, s_dim, ss_dim):
+#         super(DecoderEnsemble, self).__init__(cond_var=["s", "ss"], var=["x"])
+#         self.fc1 = nn.Linear(s_dim, 1024)
+#         self.fc2 = nn.Linear(ss_dim, 1024)
+#         self.conv1 = nn.ConvTranspose2d(2048, 128, 5, stride=2)  # 5x5
+#         self.conv2 = nn.ConvTranspose2d(128, 64, 5, stride=2)    # 13x13
+#         self.conv3 = nn.ConvTranspose2d(64, 32, 6, stride=2)     # 30x30
+#         self.conv4 = nn.ConvTranspose2d(32, 3, 6, stride=2)      # 64x64
 
-    def forward(self, s, ss):
-        h1 = self.fc1(s)
-        h2 = self.fc2(ss)
-        h = torch.cat((h1, h2), 1)
-        h = h.view(s.size(0), 2048, 1, 1)
-        h = F.relu(self.conv1(h))
-        h = F.relu(self.conv2(h))
-        h = F.relu(self.conv3(h))
-        h = self.conv4(h)
-        return {"loc": h, "scale": 1.0}
+#     def forward(self, s, ss):
+#         h1 = self.fc1(s)
+#         h2 = self.fc2(ss)
+#         h = torch.cat((h1, h2), 1)
+#         h = h.view(s.size(0), 2048, 1, 1)
+#         h = F.relu(self.conv1(h))
+#         h = F.relu(self.conv2(h))
+#         h = F.relu(self.conv3(h))
+#         h = self.conv4(h)
+#         return {"loc": h, "scale": 1.0}
 
 
-class DecoderResidual(Normal):
-    def __init__(self, s_dim, ss_dim):
-        super(DecoderResidual, self).__init__(cond_var=["s", "ss"], var=["x"])
-        self.mode = None
-        self.fc1 = nn.Linear(s_dim, 1024)
-        self.fc2 = nn.Linear(ss_dim, 1024)
-        self.conv1 = nn.ConvTranspose2d(1024, 128, 5, stride=2)  # 5x5
-        self.conv2 = nn.ConvTranspose2d(128, 64, 5, stride=2)    # 13x13
-        self.conv3 = nn.ConvTranspose2d(64, 32, 6, stride=2)     # 30x30
-        self.conv4 = nn.ConvTranspose2d(32, 3, 6, stride=2)      # 64x64
+# class DecoderResidual(Normal):
+#     def __init__(self, s_dim, ss_dim):
+#         super(DecoderResidual, self).__init__(cond_var=["s", "ss"], var=["x"])
+#         self.mode = None
+#         self.fc1 = nn.Linear(s_dim, 1024)
+#         self.fc2 = nn.Linear(ss_dim, 1024)
+#         self.conv1 = nn.ConvTranspose2d(1024, 128, 5, stride=2)  # 5x5
+#         self.conv2 = nn.ConvTranspose2d(128, 64, 5, stride=2)    # 13x13
+#         self.conv3 = nn.ConvTranspose2d(64, 32, 6, stride=2)     # 30x30
+#         self.conv4 = nn.ConvTranspose2d(32, 3, 6, stride=2)      # 64x64
 
-    def forward(self, s, ss):
-        assert self.mode in [0, 1], "not expected"
-        h1 = self.fc1(s)
-        if self.mode == 1:
-            h2 = self.fc2(ss)
-            h1 += h2
-        self.mode = None
-        h = h1.view(s.size(0), 1024, 1, 1)
-        h = F.relu(self.conv1(h))
-        h = F.relu(self.conv2(h))
-        h = F.relu(self.conv3(h))
-        h = self.conv4(h)
-        return {"loc": h, "scale": 1.0}
+#     def forward(self, s, ss):
+#         assert self.mode in [0, 1], "not expected"
+#         h1 = self.fc1(s)
+#         if self.mode == 1:
+#             h2 = self.fc2(ss)
+#             h1 += h2
+#         self.mode = None
+#         h = h1.view(s.size(0), 1024, 1, 1)
+#         h = F.relu(self.conv1(h))
+#         h = F.relu(self.conv2(h))
+#         h = F.relu(self.conv3(h))
+#         h = self.conv4(h)
+#         return {"loc": h, "scale": 1.0}
