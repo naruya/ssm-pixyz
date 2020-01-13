@@ -36,7 +36,7 @@ class SimpleSSM(Base):
         self.s_dim = s_dim = args.s_dim
         self.a_dim = a_dim = args.a_dim
         self.h_dim = h_dim = args.h_dim
-        self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss"]
+        self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs", "s_std"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
         self.posterior = Posterior(self.prior, h_dim, s_dim, a_dim).to(device)
@@ -59,6 +59,7 @@ class SimpleSSM(Base):
     def forward(self, feed_dict, train, sample=False):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_loss, x_loss = 0., 0.
+        s_abs, s_std = 0., 0.
         s_prev = self.sample_s0(x0, train)
         _T, _B = x.size(0), x.size(1)
         _x = []
@@ -71,8 +72,12 @@ class SimpleSSM(Base):
             s_loss += self.s_loss_cls.eval(feed_dict).mean()
             if train:
                 s_t = self.posterior.dist.rsample()
+                s_abs += self.posterior.dist.mean.abs().mean()
+                s_std += self.posterior.dist.stddev.mean()
             else:
                 s_t = self.prior.dist.mean
+                s_abs += self.prior.dist.mean.abs().mean()
+                s_std += self.prior.dist.stddev.mean()
             feed_dict = {"s": s_t, "x": x_t}
             x_loss += - self.decoder.log_prob().eval(feed_dict).mean()
             _x.append(self.decoder.dist.mean)
@@ -84,7 +89,8 @@ class SimpleSSM(Base):
             return _x
         else:
             return loss, {"loss": loss.item(), "x_loss": x_loss.item(),
-                          "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item()}
+                          "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item(),
+                          "s_abs": s_abs.item(), "s_std": s_std.item()}
 
     def sample_s0(self, x0, train):
         device = self.device
