@@ -1,6 +1,7 @@
 import argparse
 import os
 from datetime import datetime
+import subprocess
 
 
 def get_args(jupyter=False, args=None):
@@ -31,10 +32,15 @@ def get_args(jupyter=False, args=None):
         for i, d in enumerate(args.s_dim[1:]):
             s_dim += "-" + str(d)
 
+    cmd = "git rev-parse --short HEAD"
+    ghash = subprocess.check_output(cmd.split()).strip().decode('utf-8')
+
     log_dir = os.path.join(
         args.runs_dir,
         datetime.now().strftime("%b%d_%H-%M-%S")
-        + "_" + args.model + "_" + s_dim)
+        + "_" + args.model + "_" + s_dim
+        + "_" + ghash
+    )
 
     if args.comment:
         log_dir += "_" + args.comment
