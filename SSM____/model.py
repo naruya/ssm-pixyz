@@ -4,7 +4,7 @@ import torch
 from torch import nn, optim
 from pixyz.models import Model
 from pixyz.losses import KullbackLeibler, LogProb
-from core import Prior, Posterior, Encoder, Decoder, DecoderEnsemble, DecoderResidual
+from core import Prior, Posterior, Encoder, Decoder
 from torch.nn.utils import clip_grad_norm_
 from torch_utils import init_weights
 
