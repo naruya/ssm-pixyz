@@ -38,6 +38,7 @@ class SimpleSSM(Base):
         self.s_dim = s_dim = args.s_dim
         self.a_dim = a_dim = args.a_dim
         self.h_dim = h_dim = args.h_dim
+        self.gamma = args.gamma
         self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs[0]", "s_std[0]", "s_aux_loss[0]"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
@@ -87,8 +88,9 @@ class SimpleSSM(Base):
             _x.append(self.decoder.dist.mean)
             s_prev = s_t
 
+        loss = s_loss + x_loss + self.gamma * s_aux_loss
         # loss = s_loss + x_loss + s_aux_loss
-        loss = s_loss + x_loss
+        # loss = s_loss + x_loss
 
         if sample:
             return _x
