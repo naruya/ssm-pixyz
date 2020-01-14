@@ -7,7 +7,9 @@ from torch.nn import functional as F
 from pixyz.distributions import Normal, Bernoulli, Deterministic
 
 
-MIN_STDDEV = 1e-5
+# 実験上、絶対に加えるべき．(これが理由で高次元無理と言われないため)
+# だけど、MIN_STDDEVによる悪化具合を調べたい。
+MIN_STDDEV = 0.  # 1e-5
 
 
 # --------------------------------

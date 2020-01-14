@@ -87,7 +87,8 @@ class SimpleSSM(Base):
             _x.append(self.decoder.dist.mean)
             s_prev = s_t
 
-        loss = s_loss + x_loss + s_aux_loss
+        # loss = s_loss + x_loss + s_aux_loss
+        loss = s_loss + x_loss
 
         if sample:
             return _x
