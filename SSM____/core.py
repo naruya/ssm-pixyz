@@ -49,21 +49,29 @@ class Prior(Normal):
 
 
 class Posterior(Normal):
-    def __init__(self, prior, h_dim, s_dim, a_dim, aa_dim=None):
+    def __init__(self, h_dim, s_dim, a_dim, aa_dim=None):
         if not aa_dim:
             super(Posterior, self).__init__(cond_var=["s_prev", "a", "h"], var=["s"])
         else:
             super(Posterior, self).__init__(cond_var=["s_prev", "a", "aa", "h"], var=["s"])
 
         self._min_stddev = MIN_STDDEV
-        self.prior = prior
-        self.fc1 = nn.Linear(s_dim * 2 + h_dim, s_dim * 2)
+        self.enc_a = nn.Linear(a_dim, s_dim)
+        if not aa_dim:
+            self.fc1 = nn.Linear(s_dim * 2 + h_dim, s_dim * 2)
+        else:
+            self.enc_aa = nn.Linear(aa_dim, s_dim)
+            self.fc1 = nn.Linear(s_dim * 3 + h_dim, s_dim * 2)
         self.fc21 = nn.Linear(s_dim * 2, s_dim)
         self.fc22 = nn.Linear(s_dim * 2, s_dim)
 
     def forward(self, s_prev, a, aa=None, h=None):
-        pri = self.prior(s_prev, a, aa)
-        h = torch.cat((pri["loc"], pri["scale"], h), 1)
+        a = self.enc_a(a)
+        if aa is None:
+            h = torch.cat((s_prev, a, h), 1)
+        else:
+            aa = self.enc_aa(aa)
+            h = torch.cat((s_prev, a, aa, h), 1)
         h = F.relu(self.fc1(h))
         return {"loc": self.fc21(h),
                 "scale": F.softplus(self.fc22(h)) + self._min_stddev}

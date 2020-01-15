@@ -42,7 +42,7 @@ class SimpleSSM(Base):
         self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs[0]", "s_std[0]", "s_aux_loss[0]"]
 
         self.prior = Prior(s_dim, a_dim).to(device)
-        self.posterior = Posterior(self.prior, h_dim, s_dim, a_dim).to(device)
+        self.posterior = Posterior(h_dim, s_dim, a_dim).to(device)
         self.encoder = Encoder().to(device)
         self.decoder = Decoder(s_dim).to(device)
 
