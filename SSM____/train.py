@@ -25,9 +25,9 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
 
         feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
         if train:
-            loss, omake_dict = model.train_(feed_dict)
+            loss, omake_dict = model.train_(feed_dict, epoch)
         else:
-            loss, omake_dict = model.test_(feed_dict)
+            loss, omake_dict = model.test_(feed_dict, epoch)
         for k in summ.keys():
             v = omake_dict[k]
             summ[k] += v * _B
@@ -77,6 +77,8 @@ if __name__ == "__main__":
         model = SSM(args, device, query=["s"], extra="residual")
     elif args.model == "SSM15":
         model = SSM(args, device, query=["a", "s"], extra=None)
+    elif args.model == "SSM16":
+        model = SSM(args, device)
     elif args.model == "SimpleSSM":
         args.s_dim = args.s_dim[0]
         model = SimpleSSM(args, device)
