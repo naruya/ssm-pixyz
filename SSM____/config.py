@@ -19,6 +19,8 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
     parser.add_argument("--runs_dir", type=str, default="../runs/")
+    parser.add_argument("--resume_name", type=str, default=None)
+    parser.add_argument("--resume_time", type=str, default=None)
     parser.add_argument("--seed", type=int, default=0)
 
     if not jupyter:

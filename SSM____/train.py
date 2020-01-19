@@ -2,7 +2,7 @@ from config import get_args
 from tqdm import tqdm
 from model import *
 from data_loader import PushDataLoader
-from pixyz_utils import save_model
+from pixyz_utils import save_model,load_model
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
@@ -85,6 +85,8 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
+    # load_model(model, args.resume_name, args.resume_time)
+
     train_loader = PushDataLoader("train", args)
     test_loader = PushDataLoader("test", args)
 
@@ -92,4 +94,4 @@ if __name__ == "__main__":
         print(epoch)
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-        save_model(model)
+        save_model(model, args.log_dir.split("/")[-1])
