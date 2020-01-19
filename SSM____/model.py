@@ -193,7 +193,8 @@ class SSM(Base):
 
             betas = []
             for i in range(1, self.num_states):
-                betas.append(max(0., min(1.0, - epoch * 0.01 + i)))
+                # betas.append(max(0., min(1.0, - epoch * 0.01 + i)))
+                betas.append(1.)
             betas.append(1.)  # last
 
             for i in range(self.num_states):
