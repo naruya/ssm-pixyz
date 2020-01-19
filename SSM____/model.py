@@ -149,6 +149,9 @@ class SSM(Base):
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
             self.keys.append("s_loss[{}]".format(i))
             self.keys.append("x_loss[{}]".format(i))
+            # self.keys.append("s_aux_loss[{}]".format(i))
+            self.keys.append("s_abs[{}]".format(i))
+            self.keys.append("s_std[{}]".format(i))
             self.keys.append("beta[{}]".format(i))
 
         distributions = self.priors + self.posteriors + self.encoders + self.decoders
@@ -160,7 +163,7 @@ class SSM(Base):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_losss = [0.] * self.num_states
         x_losss = [0.] * self.num_states
-        s_aux_losss = [0.] * self.num_states
+        # s_aux_losss = [0.] * self.num_states
         s_abss = [0.] * self.num_states
         s_stds = [0.] * self.num_states
         _T, _B = x.size(0), x.size(1)
@@ -178,8 +181,12 @@ class SSM(Base):
                 s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
                 if train:
                     s_t.append(self.posteriors[i].dist.rsample())
+                    s_abss[i] += self.posteriors[i].dist.mean.abs().mean()
+                    s_stds[i] += self.posteriors[i].dist.stddev.mean()
                 else:
                     s_t.append(self.priors[i].dist.mean)
+                    s_abss[i] += self.priors[i].dist.mean.abs().mean()
+                    s_stds[i] += self.priors[i].dist.stddev.mean()
                 feed_dict = {"s": s_t[-1], "x": x_t}
                 x_losss[i] += - self.x_loss_clss[i].eval(feed_dict).mean()
 
@@ -198,12 +205,15 @@ class SSM(Base):
             betas.append(1.)  # last
 
             for i in range(self.num_states):
-                loss += s_losss[i] + betas[i] * x_losss[i] + self.gamma * s_aux_losss[i]
+                loss += s_losss[i] + betas[i] * x_losss[i] # + self.gamma * s_aux_losss[i]
 
             return_dict = {"loss": loss.item(), "x_loss": x_losss[-1].item()}
             for i in range(self.num_states):
                 return_dict.update({"s_loss[{}]".format(i): s_losss[i].item()})
                 return_dict.update({"x_loss[{}]".format(i): x_losss[i].item()})
+                # return_dict.update({"s_aux_loss[{}]".format(i): s_aux_losss[i].item()})
+                return_dict.update({"s_abs[{}]".format(i): s_abss[i].item()})
+                return_dict.update({"s_std[{}]".format(i): s_stds[i].item()})
                 return_dict.update({"beta[{}]".format(i): betas[i]})
 
             return loss, return_dict
