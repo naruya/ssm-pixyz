@@ -19,8 +19,11 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
     parser.add_argument("--runs_dir", type=str, default="../runs/")
+    parser.add_argument('--resume', action='store_true')
     parser.add_argument("--resume_name", type=str, default=None)
     parser.add_argument("--resume_time", type=str, default=None)
+    parser.add_argument("--resume_itr", type=int, default=None)
+    parser.add_argument("--resume_epoch", type=int, default=None)
     parser.add_argument("--seed", type=int, default=0)
 
     if not jupyter:
@@ -31,6 +34,9 @@ def get_args(jupyter=False, args=None):
         else:
             args = parser.parse_args([])
 
+    if args.resume:
+        assert args.resume_name and args.resume_time and args.resume_itr and args.resume_epoch, "invalid resume options"
+
     s_dim = "s" + str(args.s_dim[0])
     if len(args.s_dim) > 1:
         for i, d in enumerate(args.s_dim[1:]):
@@ -39,15 +45,20 @@ def get_args(jupyter=False, args=None):
     cmd = "git rev-parse --short HEAD"
     ghash = subprocess.check_output(cmd.split()).strip().decode('utf-8')
 
-    log_dir = os.path.join(
-        args.runs_dir,
-        datetime.now().strftime("%b%d_%H-%M-%S")
-        + "_" + args.model + "_" + s_dim
-        + "_" + ghash
-    )
-
-    if args.comment:
-        log_dir += "_" + args.comment
+    if not args.resume:
+        log_dir = os.path.join(
+            args.runs_dir,
+            datetime.now().strftime("%b%d_%H-%M-%S")
+            + "_" + args.model + "_" + s_dim
+            + "_" + ghash
+        )
+        if args.comment:
+            log_dir += "_" + args.comment
+    else:
+        log_dir = os.path.join(
+            args.runs_dir,
+            args.resume_name
+        )
 
     args.log_dir = log_dir
     return args

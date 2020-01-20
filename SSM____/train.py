@@ -85,12 +85,15 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    # load_model(model, args.resume_name, args.resume_time)
+    if args.resume:
+        load_model(model, args.resume_name, args.resume_time)
 
     train_loader = PushDataLoader("train", args)
     test_loader = PushDataLoader("test", args)
 
-    for epoch in range(1, args.epochs + 1):
+    resume_epoch = 1 if not args.resume else args.resume_epoch
+
+    for epoch in range(resume_epoch, args.epochs + 1):
         print(epoch)
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
