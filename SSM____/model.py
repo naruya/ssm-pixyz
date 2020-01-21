@@ -208,7 +208,7 @@ class SSM(Base):
             betas.append(1.)  # last
 
             for i in range(self.num_states):
-                loss += s_losss[i] + betas[i] * x_losss[i] + self.gamma * s_aux_losss[i]
+                loss += s_losss[i] + betas[i] * x_losss[i]  # + self.gamma * s_aux_losss[i]
 
             return_dict = {"loss": loss.item(), "x_loss": x_losss[-1].item()}
             for i in range(self.num_states):
