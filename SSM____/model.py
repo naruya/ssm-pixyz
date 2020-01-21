@@ -138,7 +138,7 @@ class SSM(Base):
 
         for i in range(self.num_states):
             s_dim = self.s_dims[i]
-            a_dims = [self.a_dim] + self.s_dims[:i]
+            a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
             print(s_dim)
             print(a_dims)
             self.priors.append(Prior(s_dim, a_dims, self.min_stddev))
@@ -179,7 +179,7 @@ class SSM(Base):
 
             for i in range(self.num_states):
                 h_t.append(self.encoders[i].sample({"x": x_t}, return_all=False)["h"])
-                feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t}
+                feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t[-1:]}
                 s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
                 s_aux_losss[i] += kl_divergence(self.posteriors[i].dist, self.prior01).mean()
                 if train:
@@ -233,7 +233,7 @@ def _sample_s0(model, x0, train):
     h_t, s_t = [], []
     for i in range(model.num_states):
         h_t.append(model.encoders[i].sample_mean({"x": x0}))
-        a_list = [torch.zeros(_B, d).to(device) for d in [model.a_dim] + model.s_dims[:i]]
+        a_list = [torch.zeros(_B, d).to(device) for d in [model.a_dim] + model.s_dims[i-1:i]]
         feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": a_list}
         s_t.append(model.posteriors[i].sample_mean(feed_dict))
     return s_t
