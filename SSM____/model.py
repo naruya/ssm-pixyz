@@ -127,6 +127,7 @@ class SSM(Base):
         self.num_states = len(self.s_dims)
         self.gamma = args.gamma
         self.min_stddev = args.min_stddev
+        self.separate = args.separate
 
         self.priors = []
         self.posteriors = []
@@ -141,10 +142,10 @@ class SSM(Base):
             a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
             print(s_dim)
             print(a_dims)
-            self.priors.append(Prior(s_dim, a_dims, self.min_stddev))
-            self.posteriors.append(Posterior(s_dim, self.h_dim, a_dims, self.min_stddev))
-            self.encoders.append(Encoder())
-            self.decoders.append(Decoder(s_dim).to(device))
+            self.priors.append(Prior(s_dim, a_dims, self.min_stddev).to(device))
+            self.posteriors.append(Posterior(s_dim, self.h_dim, a_dims, self.min_stddev).to(device))
+            self.encoders.append(Encoder().to(device))
+            self.decoders.append(Decoder(s_dim).to(device).to(device))
             self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
             self.keys.append("s_loss[{}]".format(i))
@@ -156,8 +157,12 @@ class SSM(Base):
 
         self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
 
-        distributions = self.priors + self.posteriors + self.encoders + self.decoders
-        self.distributions = nn.ModuleList(distributions).to(device)
+        if not self.separate:
+            distributions = self.priors + self.posteriors + self.encoders + self.decoders
+        else:
+            print("separate train, distributions")
+            distributions = [self.priors[-1], self.posteriors[-1], self.encoders[-1], self.decoders[-1]]
+        self.distributions = nn.ModuleList(distributions)
         init_weights(self.distributions)
         self.optimizer = optim.Adam(self.distributions.parameters())
 
@@ -183,7 +188,10 @@ class SSM(Base):
                 s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
                 s_aux_losss[i] += kl_divergence(self.posteriors[i].dist, self.prior01).mean()
                 if train:
-                    s_t.append(self.posteriors[i].dist.rsample())
+                    if not self.separate or i == self.num_states - 1:
+                        s_t.append(self.posteriors[i].dist.rsample())
+                    else:
+                        s_t.append(self.priors[i].dist.mean)
                     s_abss[i] += self.posteriors[i].dist.mean.abs().mean()
                     s_stds[i] += self.posteriors[i].dist.stddev.mean()
                 else:
@@ -208,7 +216,8 @@ class SSM(Base):
             betas.append(1.)  # last
 
             for i in range(self.num_states):
-                loss += s_losss[i] + betas[i] * x_losss[i]  # + self.gamma * s_aux_losss[i]
+                if not self.separate or i == self.num_states - 1:
+                    loss += s_losss[i] + betas[i] * x_losss[i]  # + self.gamma * s_aux_losss[i]
 
             return_dict = {"loss": loss.item(), "x_loss": x_losss[-1].item()}
             for i in range(self.num_states):

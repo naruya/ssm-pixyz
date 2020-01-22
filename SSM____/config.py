@@ -24,6 +24,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--resume_time", type=str, default=None)
     parser.add_argument("--resume_itr", type=int, default=None)
     parser.add_argument("--resume_epoch", type=int, default=None)
+    parser.add_argument('--separate', action='store_true')
     parser.add_argument("--seed", type=int, default=0)
 
     if not jupyter:
