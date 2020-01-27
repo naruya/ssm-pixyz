@@ -111,8 +111,7 @@ prior = Normal(
     name="p_{prior}",
 ).to(device)
 kl = KullbackLeibler(q, prior)
-model = VAE(q, p, regularizer=kl, optimizer=optim.Adam,
-            optimizer_params={"lr": 1e-3})
+model = VAE(q, p, regularizer=kl, optimizer=optim.Adam)
 
 log_dir = "../runs/" + datetime.now().strftime("%b%d_%H-%M-%S") + "_" + args.comment
 writer = SummaryWriter(log_dir=log_dir)
