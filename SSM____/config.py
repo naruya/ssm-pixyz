@@ -36,7 +36,12 @@ def get_args(jupyter=False, args=None):
             args = parser.parse_args([])
 
     if args.resume:
-        assert args.resume_name and args.resume_time and args.resume_itr and args.resume_epoch, "invalid resume options"
+        assert args.resume_name and args.resume_time \
+        and args.resume_itr and args.resume_epoch, \
+        "invalid resume train options"
+    # if args.separate :
+    #     assert args.resume_name and args.resume_time, \
+    #     "invalid separate train options"
 
     s_dim = "s" + str(args.s_dim[0])
     if len(args.s_dim) > 1:

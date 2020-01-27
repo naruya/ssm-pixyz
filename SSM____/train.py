@@ -85,13 +85,19 @@ if __name__ == "__main__":
     else:
         raise NotImplementedError
 
-    # if args.resume:
-    #     load_model(model, args.resume_name, args.resume_time)
+    if args.resume:
+        load_model(model, args.resume_name, args.resume_time)
 
     import os
     if args.separate:
+
         path = os.path.join("model", "SSM", "Jan21_01-16-15")
         restore_distributions = [model.priors[0], model.posteriors[0], model.encoders[0], model.decoders[0]]
+        for i, dist in enumerate(restore_distributions):
+            dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
+
+        path = os.path.join("model", "Jan22_03-57-33_SSM16_s64-512_ac6311e", "Jan27_07-50-02")
+        restore_distributions = [model.priors[1], model.posteriors[1], model.encoders[1], model.decoders[1]]
         for i, dist in enumerate(restore_distributions):
             dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
 
