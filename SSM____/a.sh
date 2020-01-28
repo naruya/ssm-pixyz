@@ -1,4 +1,5 @@
-CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 512 1024 --separate
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 512 1024 --resume --resume_name Jan27_08-37-25_SSM16_s64-512-1024_9adc149 --resume_time Jan28_04-51-23 --resume_itr 158184 --resume_epoch 117 --separate --min_stddev 1e-7
+# CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 512 1024 --separate
 # CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 512 --separate
 # CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 512 1024 --min_stddev 1e-7
 # CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=16 python train.py --model SSM16 --s_dim 64 1024 1024 1024 --comment beta1_std_kl01 --min_stddev 1e-7
