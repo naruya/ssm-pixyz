@@ -29,7 +29,7 @@ class PushDataLoader:
         )
         self.ds = self.ds.prefetch(tf.data.experimental.AUTOTUNE).repeat(args.epochs)
         self.ds = tfds.as_numpy(self.ds)
-        self.itr = 0
+        self.itr = 0 if not args.resume else args.resume_itr
 
     def func(self, data):
         x = (

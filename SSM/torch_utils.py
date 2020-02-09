@@ -1,4 +1,4 @@
-# https://github.com/iShohei220/corl-gqn/blob/taniguchi/ssmgqn/conv_lstm.py
+# https://gist.github.com/jeasinema/ed9236ce743c8efaf30fa2ff732749f5
 
 from torch import nn
 
@@ -9,12 +9,10 @@ def init_weights(model):
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
             nn.init.normal_(m.bias)
-        elif isinstance(
-            m, (nn.Conv1d, nn.Conv2d, nn.ConvTranspose1d, nn.ConvTranspose2d)
-        ):
+        elif isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
             nn.init.xavier_normal_(m.weight)
             nn.init.constant_(m.bias, 0)
-        elif isinstance(m, (nn.LSTM, nn.LSTMCell, nn.GRU, nn.GRUCell)):
+        elif isinstance(m, (nn.RNN, nn.RNNCell, nn.LSTM, nn.LSTMCell, nn.GRU, nn.GRUCell)):
             for param in m.parameters():
                 if len(param.shape) >= 2:
                     nn.init.orthogonal_(param.data)
@@ -27,4 +25,3 @@ def init_weights(model):
             print("  ", type(m))
             continue
         print("ok", type(m))
-
