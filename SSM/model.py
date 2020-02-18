@@ -8,7 +8,8 @@ from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from core import Prior, Posterior, Encoder, Decoder
 from torch.nn.utils import clip_grad_norm_
-from torch_utils import init_weights
+from utils import init_weights
+from copy import deepcopy
 
 
 class Base(nn.Module):
@@ -29,6 +30,13 @@ class Base(nn.Module):
 
     def test_(self, feed_dict, epoch):
         return _test(self, feed_dict, epoch)
+
+    def forward_(self, feed_dict, epoch, train):
+        if train:
+            loss, omake_dict = self.train_(feed_dict, epoch)
+        else:
+            loss, omake_dict = self.test_(feed_dict, epoch)
+        return loss, omake_dict
 
 
 # class SimpleSSM(Base):
@@ -124,9 +132,9 @@ class SSM(Base):
         self.s_dims = args.s_dim  # list
         self.a_dim = args.a_dim
         self.h_dim = args.h_dim
-        self.num_states = len(self.s_dims)
         self.gamma = args.gamma
         self.min_stddev = args.min_stddev
+        self.num_states = len(self.s_dims)
 
         self.priors = []
         self.posteriors = []
@@ -134,25 +142,17 @@ class SSM(Base):
         self.decoders = []
         self.s_loss_clss = []
         self.x_loss_clss = []
-        self.keys = ["loss", "x_loss"]
 
         for i in range(self.num_states):
             s_dim = self.s_dims[i]
             a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
-            print(s_dim)
-            print(a_dims)
+            print("s_dim", s_dim, "a_dims", a_dims)
             self.priors.append(Prior(s_dim, a_dims, self.min_stddev))
             self.posteriors.append(Posterior(s_dim, self.h_dim, a_dims, self.min_stddev))
             self.encoders.append(Encoder())
             self.decoders.append(Decoder(s_dim).to(device))
             self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
-            self.keys.append("s_loss[{}]".format(i))
-            self.keys.append("x_loss[{}]".format(i))
-            self.keys.append("s_aux_loss[{}]".format(i))
-            self.keys.append("s_abs[{}]".format(i))
-            self.keys.append("s_std[{}]".format(i))
-            self.keys.append("beta[{}]".format(i))
 
         self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
 
@@ -162,12 +162,16 @@ class SSM(Base):
         self.optimizer = optim.Adam(self.distributions.parameters())
 
     def forward(self, feed_dict, train, epoch=None, sample=False):
-        x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
+        keys = set(locals().keys())
+        loss = 0.
         s_losss = [0.] * self.num_states
         x_losss = [0.] * self.num_states
         s_aux_losss = [0.] * self.num_states
         s_abss = [0.] * self.num_states
         s_stds = [0.] * self.num_states
+        keys = set(locals().keys()) - keys - {"keys"}
+
+        x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         _T, _B = x.size(0), x.size(1)
         _x = []
 
@@ -199,25 +203,11 @@ class SSM(Base):
         if sample:
             return _x
         else:
-            loss = 0.
-
-            betas = []
-            for i in range(1, self.num_states):
-                # betas.append(max(0., min(1.0, - epoch * 0.01 + i)))
-                betas.append(1.)
-            betas.append(1.)  # last
-
             for i in range(self.num_states):
-                loss += s_losss[i] + betas[i] * x_losss[i]  # + self.gamma * s_aux_losss[i]
+                loss += s_losss[i] + x_losss[i]  # + self.gamma * s_aux_losss[i]
 
-            return_dict = {"loss": loss.item(), "x_loss": x_losss[-1].item()}
-            for i in range(self.num_states):
-                return_dict.update({"s_loss[{}]".format(i): s_losss[i].item()})
-                return_dict.update({"x_loss[{}]".format(i): x_losss[i].item()})
-                return_dict.update({"s_aux_loss[{}]".format(i): s_aux_losss[i].item()})
-                return_dict.update({"s_abs[{}]".format(i): s_abss[i].item()})
-                return_dict.update({"s_std[{}]".format(i): s_stds[i].item()})
-                return_dict.update({"beta[{}]".format(i): betas[i]})
+            _locals = locals()
+            return_dict = {key:_locals[key] for key in keys}
 
             return loss, return_dict
 
