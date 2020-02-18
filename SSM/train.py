@@ -21,7 +21,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
 
         loss, omake_dict = model.forward_(feed_dict, epoch, train)
 
-        omake_dict = flat_dict(omake_dict)
+        omake_dict = flatten_dict(omake_dict)
 
         try:
             summ
@@ -37,7 +37,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
 
     if writer:
         video = model.sample_x(feed_dict)
-        summ = write_summ(summ, video, wtiter, loader.N)
+        write_summ(summ, video, wtiter, loader.N)
 
 if __name__ == "__main__":
     args = get_args()
@@ -57,9 +57,6 @@ if __name__ == "__main__":
 
     if args.model == "SSM":
         model = SSM(args, device)
-    elif args.model == "SimpleSSM":
-        args.s_dim = args.s_dim[0]
-        model = SimpleSSM(args, device)
     else:
         raise NotImplementedError
 

@@ -45,7 +45,7 @@ def init_weights(model):
         print("ok", type(m))
 
 
-def flat_dict(omake_dict):
+def flatten_dict(omake_dict):
     return_dict = {}
     for k, v in omake_dict.items():
         if type(v) is list:
