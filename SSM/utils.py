@@ -62,7 +62,7 @@ def update_summ(summ, omake_dict, _B):
     return summ
 
 
-def write_summ(summ, video, writer, N, train):
+def write_summ(summ, video, writer, N, epoch, train):
     prefix = "train_" if train else "test_"
     for k, v in summ.items():
         v = v / N
