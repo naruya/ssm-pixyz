@@ -36,6 +36,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         video = model.sample_x(feed_dict)
         write_summ(summ, video, writer, loader.N, epoch, train)
 
+
 if __name__ == "__main__":
     args = get_args()
     device = args.device_ids[0]

@@ -164,6 +164,7 @@ class SSM(Base):
     def forward(self, feed_dict, train, epoch=None, sample=False):
         keys = set(locals().keys())
         loss = 0.
+        x_loss = 0.  # final output
         s_losss = [0.] * self.num_states
         x_losss = [0.] * self.num_states
         s_aux_losss = [0.] * self.num_states
@@ -205,6 +206,7 @@ class SSM(Base):
         else:
             for i in range(self.num_states):
                 loss += s_losss[i] + x_losss[i]  # + self.gamma * s_aux_losss[i]
+            x_loss = x_losss[-1]
 
             _locals = locals()
             return_dict = {key:_locals[key] for key in keys}

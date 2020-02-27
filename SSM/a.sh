@@ -1,4 +1,58 @@
-CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 512 --B 256
+# ①ベースラインのベース。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64  #64
+
+# ②ベースライン。ただ単に次元を大きくすると悪化することを確認する。発散とかしたら、理由も調べる。
+# 4は発散しそうだけど、特にもし2も3も悪化しなかった場合には、ある程度学習が進むように工夫して学習させる。
+# その場合、以降の1024次元でも同じ処置を加える。
+# 逆に改善してしまった場合は実験を考えなおす。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 128  #128
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 256  #256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 512  #512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 1024  #1024
+
+# ③提案手法。②で一番最初に悪化した次元をa、次の次元をbとして、64+aを実験する。
+# ただのaより良くなることを示す。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 128  #64+128
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 256  #64+256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 512  #64+512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 1024  #64+1024
+
+# ④提案手法。64+a+bを実験する。階層を増やすと良いことを示す。
+# ただのbより良くなることと、64+aよりも良くなることを示す。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 128 256  #64+128+256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 256 512  #64+256+512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 512 1024  #64+512+1024
+
+# ----------------------------------------------------------------
+
+# 以下モデルを大きくしたバージョン
+
+# ①ベースラインのベース。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64  #64
+
+# ②ベースライン。ただ単に次元を大きくすると悪化することを確認する。発散とかしたら、理由も調べる。
+# 4は発散しそうだけど、特にもし2も3も悪化しなかった場合には、ある程度学習が進むように工夫して学習させる。
+# その場合、以降の1024次元でも同じ処置を加える。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 128  #128
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 256  #256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 512  #512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 1024  #1024
+
+# ③提案手法。②で一番最初に悪化した次元をa、次の次元をbとして、64+aを実験する。
+# ただのaより良くなることを示す。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 128  #64+128
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 256  #64+256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 512  #64+512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 1024  #64+1024
+
+# ④提案手法。64+a+bを実験する。階層を増やすと良いことを示す。
+# ただのbより良くなることと、64+aよりも良くなることを示す。
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 128 256  #64+128+256
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 256 512  #64+256+512
+CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64 512 1024  #64+512+1024
+
+# ----------------------------------------------------------------
+
 # CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 1024 --B 256
 # CUDA_VISIBLE_DEVICES=3 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 1024
 # CUDA_VISIBLE_DEVICES=2 OMP_NUM_THREADS=16 python train.py --model SSM --s_dim 64

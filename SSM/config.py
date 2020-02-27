@@ -9,14 +9,14 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--device_ids", type=int, nargs="+", default=[0])
     parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--comment", type=str, default=None)
-    parser.add_argument("--B", type=int, default=32)
+    parser.add_argument("--B", type=int, default=256)
     parser.add_argument("--T", type=int, default=10)
     parser.add_argument("--s_dim", type=int, nargs="+", default=None)
     parser.add_argument("--h_dim", type=int, default=1024)
     parser.add_argument("--a_dim", type=int, default=4)
     parser.add_argument('--gamma', type=float, default=1e-5)
     parser.add_argument('--min_stddev', type=float, default=0.)
-    parser.add_argument("--epochs", type=int, default=1000)
+    parser.add_argument("--epochs", type=int, default=10000)
     parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
     parser.add_argument("--runs_dir", type=str, default="../runs/")
     parser.add_argument('--resume', action='store_true')
@@ -49,7 +49,7 @@ def get_args(jupyter=False, args=None):
         log_dir = os.path.join(
             args.runs_dir,
             datetime.now().strftime("%b%d_%H-%M-%S")
-            + "_" + args.model + "_" + s_dim
+            + "_" + args.model + "_" + s_dim + "_B" + str(args.B)
             + "_" + ghash
         )
         if args.comment:
