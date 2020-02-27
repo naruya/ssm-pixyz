@@ -33,7 +33,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             break
 
     if writer:
-        video = model.sample_x(feed_dict)
+        video = model.sample_x(feed_dict) if epoch % 10 == 0 else None
         write_summ(summ, video, writer, loader.N, epoch, train)
 
 
@@ -73,4 +73,7 @@ if __name__ == "__main__":
         print(epoch)
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-        save_model(model, args.log_dir.split("/")[-1])
+        if epoch % 10 == 0:
+            save_model(model, args.log_dir.split("/")[-1])
+
+    save_model(model, args.log_dir.split("/")[-1])

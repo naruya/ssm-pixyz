@@ -67,4 +67,5 @@ def write_summ(summ, video, writer, N, epoch, train):
     for k, v in summ.items():
         v = v / N
         writer.add_scalar("epoch/" + prefix + k, v, epoch)
-    writer.add_video("epoch/" + prefix + "video", video, epoch)
+    if video:
+        writer.add_video("epoch/" + prefix + "video", video, epoch)
