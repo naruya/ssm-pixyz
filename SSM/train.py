@@ -6,10 +6,6 @@ from utils import *
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
-PLOT_SCALAR_INTERVAL = 169
-TRAIN_INTERVAL = 1352  # 43264 / 32
-TEST_INTERVAL = 8  # 256 / 32
-
 
 def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     for batch in tqdm(loader):
@@ -22,6 +18,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         loss, omake_dict = model.forward_(feed_dict, epoch, train)
 
         omake_dict = flatten_dict(omake_dict)
+        print(omake_dict)
 
         try:
             summ
@@ -47,6 +44,9 @@ if __name__ == "__main__":
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
+
+    TRAIN_INTERVAL = int(43264 / args.B)
+    TEST_INTERVAL = int(256 / args.B)
 
     print(args.log_dir)
 
