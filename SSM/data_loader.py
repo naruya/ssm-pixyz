@@ -8,7 +8,7 @@ tf.compat.v1.enable_eager_execution()
 
 
 class PushDataLoader:
-    def __init__(self, split, args):
+    def __init__(self, args, split, shuffle):
         SEED = args.seed
         np.random.seed(SEED)
 
@@ -23,7 +23,10 @@ class PushDataLoader:
         )
         self.N = self.info.splits[split].num_examples
         self.L = math.ceil(self.N / self.B)
-        self.ds = self.ds.shuffle(1024, SEED).batch(self.B)  # TODO: buffersize, interleave()
+        if shuffle:
+            self.ds = self.ds.shuffle(1024, SEED).batch(self.B)  # TODO: buffersize, interleave()
+        else:
+            self.ds = self.ds.batch(self.B)  # TODO: buffersize, interleave()
         self.ds = self.ds.map(
             self.func, num_parallel_calls=tf.data.experimental.AUTOTUNE
         )

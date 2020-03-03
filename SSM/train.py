@@ -19,6 +19,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
 
         omake_dict = flatten_dict(omake_dict)
         print(omake_dict)
+        monitor(model)
 
         try:
             summ
@@ -28,8 +29,10 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         summ = update_summ(summ, omake_dict, _B)
 
         if train and itr % TRAIN_INTERVAL == 0:
+            print(omake_dict); print()
             break
         if not train and itr % TEST_INTERVAL == 0:
+            print(omake_dict); print()
             break
 
     if writer:
@@ -64,8 +67,8 @@ if __name__ == "__main__":
     if args.resume:
         load_model(model, args.resume_name, args.resume_time)
 
-    train_loader = PushDataLoader("train", args)
-    test_loader = PushDataLoader("test", args)
+    train_loader = PushDataLoader(args, split="train", shuffle=True)
+    test_loader = PushDataLoader(args, split="test", shuffle=False)
 
     resume_epoch = 1 if not args.resume else args.resume_epoch
 
@@ -75,5 +78,6 @@ if __name__ == "__main__":
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
         if epoch % 10 == 0:
             save_model(model, args.log_dir.split("/")[-1], epoch)
+        print()
 
     save_model(model, args.log_dir.split("/")[-1])

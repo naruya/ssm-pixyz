@@ -44,6 +44,14 @@ def init_weights(model):
         print("ok", type(m))
 
 
+def monitor(model):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(name.ljust(30),
+                  "param: {:12.6f} ".format(torch.mean(torch.abs(param.data)).item()),
+                  " grad: {:12.6f} ".format(torch.mean(torch.abs(param.grad)).item()))
+
+
 def flatten_dict(omake_dict):
     return_dict = {}
     for k, v in omake_dict.items():
