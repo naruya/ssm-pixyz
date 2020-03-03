@@ -1,20 +1,19 @@
 import os
 import torch
-from datetime import datetime
 from torch import nn
 
 
-def save_model(model, name):
-    time = datetime.now().strftime("%b%d_%H-%M-%S")
-    path = os.path.join("model", name, time)
+def save_model(model, name, epoch):
+    epoch = "epoch{:05}".format(epoch)
+    path = os.path.join("model", name, epoch)
     os.makedirs(path, exist_ok=True)
     for i, dist in enumerate(model.distributions):
         torch.save(dist.state_dict(), os.path.join(path, "dist" + str(i) + ".pt"))
     torch.save(model.optimizer.state_dict(), os.path.join(path, "opt.pt"))
 
 
-def load_model(model, name, time):
-    path = os.path.join("model", name, time)
+def load_model(model, name, epoch):
+    path = os.path.join("model", name, epoch)
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))

@@ -74,6 +74,6 @@ if __name__ == "__main__":
         data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
         if epoch % 10 == 0:
-            save_model(model, args.log_dir.split("/")[-1])
+            save_model(model, args.log_dir.split("/")[-1], epoch)
 
     save_model(model, args.log_dir.split("/")[-1])
