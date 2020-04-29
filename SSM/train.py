@@ -1,83 +1,84 @@
-from config import get_args
-from tqdm import tqdm
+from config import *
 from model import *
-from data_loader import PushDataLoader
 from utils import *
+from data_loader import PushDataLoader
 from torch.utils.tensorboard import SummaryWriter
 import torch
+import sys
+import logzero
+from logzero import logger
 
 
-def data_loop(epoch, loader, model, T, device, writer=None, train=True):
-    for batch in tqdm(loader):
+def data_loop(args, epoch, loader, model, writer, interval, train=True):
+    summ = None
+    for i, batch in enumerate(loader):
+        print("==== ({}) Epoch: {} {}/{} ====".format(
+            ["Test", "Train"][train], epoch, i+1, interval))
+
         x, a, itr = batch
         _B = x.size(0)
-        x = x.to(device).transpose(0, 1)  # T,B,3,28,28
-        a = a.to(device).transpose(0, 1)  # T,B,1
+        x = x.to(args.device).transpose(0, 1)  # T,B,3,28,28
+        a = a.to(args.device).transpose(0, 1)  # T,B,1
         feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
 
-        loss, omake_dict = model.forward_(feed_dict, epoch, train)
+        if train:
+            loss, info = model.train_(feed_dict)
+        else:
+            loss, info = model.test_(feed_dict)
 
-        omake_dict = flatten_dict(omake_dict)
-        print(omake_dict)
-        monitor(model)
+        logger.debug(info)
+        summ = update_summ(summ, info, _B)
 
-        try:
-            summ
-        except NameError:
-            keys = omake_dict.keys()
-            summ = dict(zip(keys, [0.] * len(keys)))
-        summ = update_summ(summ, omake_dict, _B)
-
-        if train and itr % TRAIN_INTERVAL == 0:
-            print(omake_dict); print()
-            break
-        if not train and itr % TEST_INTERVAL == 0:
-            print(omake_dict); print()
+        if itr % interval == 0:
+            logger.info("({}) Epoch: {} {}".format(
+                ["Test", "Train"][train], epoch, mean_summ(summ, _B)))
             break
 
     if writer:
         video = model.sample_x(feed_dict) if epoch % 10 == 0 else None
+        # foo = model.sample_foo(feed_dict)
         write_summ(summ, video, writer, loader.N, epoch, train)
 
 
-if __name__ == "__main__":
+def main():
     args = get_args()
-    device = args.device_ids[0]
+#     TRAIN_INTERVAL = int(256 / args.B)
+    TRAIN_INTERVAL = int(43264 / args.B)
+
+    TEST_INTERVAL = int(256 / args.B)
+
+    logzero.loglevel(args.loglevel)
+    logzero.logfile(args.logfile, loglevel=args.loglevel)
+    logger.info(args)
+    slack("Start! " + str(sys.argv))
 
     SEED = args.seed
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
+    torch.autograd.set_detect_anomaly(True)
 
-    TRAIN_INTERVAL = int(43264 / args.B)
-    TEST_INTERVAL = int(256 / args.B)
-
-    print(args.log_dir)
-
-    if args.comment == "debug":
-        writer = None
-    else:
-        writer = SummaryWriter(log_dir=args.log_dir)
-
-    if args.model == "SSM":
-        model = SSM(args, device)
-    else:
-        raise NotImplementedError
-
-    if args.resume:
-        load_model(model, args.resume_name, args.resume_time)
-
+    writer = None  # SummaryWriter(log_dir=args.log_dir)
+    model = globals()[args.model](args)
     train_loader = PushDataLoader(args, split="train", shuffle=True)
     test_loader = PushDataLoader(args, split="test", shuffle=False)
+
+    if args.load or args.resume:
+        load_model(model, args.load_dir, args.load_epoch, load_optim=args.resume)
 
     resume_epoch = 1 if not args.resume else args.resume_epoch
 
     for epoch in range(resume_epoch, args.epochs + 1):
-        print(epoch)
-        data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
-        data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-        if epoch % 10 == 0:
-            save_model(model, args.log_dir.split("/")[-1], epoch)
-        print()
+        data_loop(args, epoch, train_loader, model, writer, TRAIN_INTERVAL, train=True)
+        data_loop(args, epoch, test_loader, model, writer, TEST_INTERVAL, train=False)
+        if epoch % 10 == 1:
+            save_model(model, args.save_dir, epoch)
+            load_model(model, args.save_dir, epoch)
 
-    save_model(model, args.log_dir.split("/")[-1])
+    save_model(model, args.save_dir, epoch)
+    logger.info(args)
+    slack("Finish! " + str(sys.argv))
+
+
+if __name__ == "__main__":
+    main()

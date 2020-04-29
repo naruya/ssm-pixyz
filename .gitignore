@@ -1,7 +1,11 @@
 logs/
 runs*/
-model/
+models/
+_models/
 .nfs*
+hist.txt
+slack.txt
+Untitled.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

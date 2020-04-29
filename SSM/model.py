@@ -8,133 +8,48 @@ from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from core import Prior, Posterior, Encoder, Decoder
 from torch.nn.utils import clip_grad_norm_
-from utils import init_weights
+from utils import init_weights, flatten_dict, check_params
 from copy import deepcopy
+from logzero import logger
 
 
 class Base(nn.Module):
-    def __init__(self):
+    def __init__(self, args):
         super(Base, self).__init__()
+        self.device = args.device
+        self.debug = args.debug
 
-    def forward(self, feed_dict, train):
+    def forward(self):
         raise NotImplementedError
 
-    def sample_s0(self, x0, train):
-        return _sample_s0(self, x0, train)
+    def train_(self, feed_dict):
+        self.train()
+        self.optimizer.zero_grad()
+        loss, info = self.forward(feed_dict, prior_sample=False)
+        clip_grad_norm_(self.distributions.parameters(), 1000)
+        loss.backward()
+        self.optimizer.step()
+        if self.debug:
+            check_params(self)
+        return loss, info
 
-    def sample_x(self, feed_dict):
-        return _sample_x(self, feed_dict)
-
-    def train_(self, feed_dict, epoch):
-        return _train(self, feed_dict, epoch)
-
-    def test_(self, feed_dict, epoch):
-        return _test(self, feed_dict, epoch)
-
-    def forward_(self, feed_dict, epoch, train):
-        if train:
-            loss, omake_dict = self.train_(feed_dict, epoch)
-        else:
-            loss, omake_dict = self.test_(feed_dict, epoch)
-        return loss, omake_dict
-
-
-# class SimpleSSM(Base):
-#     def __init__(self, args, device):
-#         super(SimpleSSM, self).__init__()
-#         self.device = device
-#         self.s_dim = s_dim = args.s_dim
-#         self.a_dim = a_dim = args.a_dim
-#         self.h_dim = h_dim = args.h_dim
-#         self.gamma = args.gamma
-#         self.keys = ["loss", "x_loss[0]", "s_loss[0]", "x_loss", "s_abs[0]", "s_std[0]", "s_aux_loss[0]"]
-
-#         self.prior = Prior(s_dim, a_dim).to(device)
-#         self.posterior = Posterior(h_dim, s_dim, a_dim).to(device)
-#         self.encoder = Encoder().to(device)
-#         self.decoder = Decoder(s_dim).to(device)
-
-#         self.distributions = nn.ModuleList([
-#             self.prior,
-#             self.posterior,
-#             self.encoder,
-#             self.decoder,
-#         ])
-
-#         init_weights(self.distributions)
-
-#         self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
-#         self.s_loss_cls = KullbackLeibler(self.posterior, self.prior)
-#         self.x_loss_cls = LogProb(self.decoder)
-#         self.optimizer = optim.Adam(self.distributions.parameters())
-
-#     def forward(self, feed_dict, train, sample=False):
-#         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
-#         s_loss, x_loss, s_aux_loss = 0., 0., 0.
-#         s_abs, s_std = 0., 0.
-#         s_prev = self.sample_s0(x0, train)
-#         _T, _B = x.size(0), x.size(1)
-#         _x = []
-
-#         for t in range(_T):
-#             x_t, a_t = x[t], a[t]
-
-#             h_t = self.encoder.sample({"x": x_t}, return_all=False)["h"]
-#             feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
-#             s_loss += self.s_loss_cls.eval(feed_dict).mean()
-#             s_aux_loss += kl_divergence(self.posterior.dist, self.prior01).mean()
-#             if train:
-#                 s_t = self.posterior.dist.rsample()
-#                 s_abs += self.posterior.dist.mean.abs().mean()
-#                 s_std += self.posterior.dist.stddev.mean()
-#             else:
-#                 s_t = self.prior.dist.mean
-#                 s_abs += self.prior.dist.mean.abs().mean()
-#                 s_std += self.prior.dist.stddev.mean()
-#             feed_dict = {"s": s_t, "x": x_t}
-#             x_loss += - self.decoder.log_prob().eval(feed_dict).mean()
-#             _x.append(self.decoder.dist.mean)
-#             s_prev = s_t
-
-#         loss = s_loss + x_loss + self.gamma * s_aux_loss
-#         # loss = s_loss + x_loss + s_aux_loss
-#         # loss = s_loss + x_loss
-
-#         if sample:
-#             return _x
-#         else:
-#             return loss, {"loss": loss.item(), "x_loss": x_loss.item(),
-#                           "x_loss[0]": x_loss.item(), "s_loss[0]": s_loss.item(),
-#                           "s_aux_loss[0]": s_aux_loss.item(),
-#                           "s_abs[0]": s_abs.item(), "s_std[0]": s_std.item()}
-
-#     def sample_s0(self, x0, train):
-#         device = self.device
-#         _B = x0.size(0)
-#         s_prev = torch.zeros(_B, self.s_dim).to(device)
-#         a_t = torch.zeros(_B, self.a_dim).to(device)
-#         if train:
-#             h_t = self.encoder.sample({"x": x0}, return_all=False)["h"]
-#             feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
-#             s_t = self.posterior.sample(feed_dict, return_all=False)["s"]
-#         else:
-#             h_t = self.encoder.sample_mean({"x": x0})
-#             feed_dict = {"s_prev": s_prev, "a": a_t, "h": h_t}
-#             s_t = self.posterior.sample_mean(feed_dict)
-#         return s_t
+    def test_(self, feed_dict):
+        self.eval()
+        with torch.no_grad():
+            loss, info = self.forward(feed_dict, prior_sample=True)
+        return loss, info
 
 
 class SSM(Base):
-    def __init__(self, args, device):
-        super(SSM, self).__init__()
-
-        self.device = device
-        self.s_dims = args.s_dim  # list
+    def __init__(self, args):
+        super(SSM, self).__init__(args)
+        self.s_dims = args.s_dims  # list
         self.a_dim = args.a_dim
         self.h_dim = args.h_dim
         self.gamma = args.gamma
         self.min_stddev = args.min_stddev
         self.num_states = len(self.s_dims)
+        self.static_hierarchy = args.static_hierarchy
 
         self.priors = []
         self.posteriors = []
@@ -142,41 +57,62 @@ class SSM(Base):
         self.decoders = []
         self.s_loss_clss = []
         self.x_loss_clss = []
+        self.distributions = []  # for train, save_model
+        self.all_distributions = []  # for load_model
 
         for i in range(self.num_states):
             s_dim = self.s_dims[i]
             a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
-            print("s_dim", s_dim, "a_dims", a_dims)
-            self.priors.append(Prior(s_dim, a_dims, self.min_stddev))
-            self.posteriors.append(Posterior(s_dim, self.h_dim, a_dims, self.min_stddev))
-            self.encoders.append(Encoder())
-            self.decoders.append(Decoder(s_dim).to(device))
-            self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
-            self.x_loss_clss.append(LogProb(self.decoders[-1]))
 
-        self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
+            prior = Prior(i, s_dim, a_dims, self.min_stddev).to(self.device)
+            posterior = Posterior(i, s_dim, self.h_dim, a_dims, self.min_stddev).to(self.device)
+            encoder = Encoder(i).to(self.device)
+            decoder = Decoder(i, s_dim).to(self.device)
+            s_loss_cls = KullbackLeibler(posterior, prior)
+            x_loss_cls = LogProb(decoder)
 
-        distributions = self.priors + self.posteriors + self.encoders + self.decoders
-        self.distributions = nn.ModuleList(distributions).to(device)
+            self.priors.append(prior)
+            self.posteriors.append(posterior)
+            self.encoders.append(encoder)
+            self.decoders.append(decoder)
+            self.s_loss_clss.append(s_loss_cls)
+            self.x_loss_clss.append(x_loss_cls)
+            dists = [prior, posterior, encoder, decoder]
+            self.all_distributions += dists
+            if i not in self.static_hierarchy:  # 2とか
+                self.distributions += dists  # trainable
+            else:  # 1とか
+                for dist in dists:
+                    for param in dist.parameters():
+                        param.requires_grad = False  # 早くなる?
+
+        if self.debug:
+            for dist in self.all_distributions:
+                logger.debug(dist.name)
+                for param in dist.parameters():
+                    logger.debug(param.requires_grad)
+
+        self.distributions = nn.ModuleList(self.distributions)
         init_weights(self.distributions)
         self.optimizer = optim.Adam(self.distributions.parameters())
 
-    def forward(self, feed_dict, train, epoch=None, sample=False):
+    def forward(self, feed_dict, prior_sample=True, return_x=False):
         keys = set(locals().keys())
         loss = 0.
-        x_loss = 0.  # final output
+        x_loss = 0.  # final output. equal to x_losss[-1]
         s_losss = [0.] * self.num_states
         x_losss = [0.] * self.num_states
-        s_aux_losss = [0.] * self.num_states
-        s_abss = [0.] * self.num_states
-        s_stds = [0.] * self.num_states
+        if self.debug:
+            s_aux_losss = [0.] * self.num_states
+            s_abss = [0.] * self.num_states
+            s_stds = [0.] * self.num_states
         keys = set(locals().keys()) - keys - {"keys"}
 
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         _T, _B = x.size(0), x.size(1)
         _x = []
 
-        s_prevs = self.sample_s0(x0, train)
+        s_prevs = self.sample_s0(x0)
 
         for t in range(_T):
             x_t, a_t = x[t], a[t]
@@ -186,77 +122,58 @@ class SSM(Base):
                 h_t.append(self.encoders[i].sample({"x": x_t}, return_all=False)["h"])
                 feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t[-1:]}
                 s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
-                s_aux_losss[i] += kl_divergence(self.posteriors[i].dist, self.prior01).mean()
-                if train:
-                    s_t.append(self.posteriors[i].dist.rsample())
-                    s_abss[i] += self.posteriors[i].dist.mean.abs().mean()
-                    s_stds[i] += self.posteriors[i].dist.stddev.mean()
-                else:
+                if self.debug:
+                    prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
+                    s_aux_losss[i] += kl_divergence(self.posteriors[i].dist, prior01).mean()
+                if prior_sample:  # or i in self.static_hierarchy:  # test
                     s_t.append(self.priors[i].dist.mean)
-                    s_abss[i] += self.priors[i].dist.mean.abs().mean()
-                    s_stds[i] += self.priors[i].dist.stddev.mean()
+                    if self.debug:
+                        s_abss[i] += self.priors[i].dist.mean.abs().mean()
+                        s_stds[i] += self.priors[i].dist.stddev.mean()
+                else:  # train
+                    s_t.append(self.posteriors[i].dist.rsample())  # rsample!
+                    if self.debug:
+                        s_abss[i] += self.posteriors[i].dist.mean.abs().mean()
+                        s_stds[i] += self.posteriors[i].dist.stddev.mean()
                 feed_dict = {"s": s_t[-1], "x": x_t}
                 x_losss[i] += - self.x_loss_clss[i].eval(feed_dict).mean()
 
             _x.append(self.decoders[-1].dist.mean)
             s_prevs = s_t
 
-        if sample:
+        if return_x:
             return _x
         else:
             for i in range(self.num_states):
-                loss += s_losss[i] + x_losss[i]  # + self.gamma * s_aux_losss[i]
+                if i not in self.static_hierarchy:
+                    loss += s_losss[i] + x_losss[i]  # + self.gamma * s_aux_losss[i]
             x_loss = x_losss[-1]
 
             _locals = locals()
-            return_dict = {key:_locals[key] for key in keys}
+            info = flatten_dict({key:_locals[key] for key in keys})
+            return loss, info
 
-            return loss, return_dict
+    def sample_s0(self, x0):
+        device = self.device
+        _B = x0.size(0)
+        s_prevs = [torch.zeros(_B, s_dim).to(device) for s_dim in self.s_dims]
+        h_t, s_t = [], []
+        for i in range(self.num_states):
+            h_t.append(self.encoders[i].sample_mean({"x": x0}))
+            a_list = [torch.zeros(_B, d).to(device) for d in [self.a_dim] + self.s_dims[i-1:i]]
+            feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": a_list}
+            s_t.append(self.posteriors[i].sample_mean(feed_dict))
+        return s_t
 
-
-# --------------------------------
-# default methods
-# --------------------------------
-
-def _sample_s0(model, x0, train):
-    device = model.device
-    _B = x0.size(0)
-    s_prevs = [torch.zeros(_B, s_dim).to(device) for s_dim in model.s_dims]
-    h_t, s_t = [], []
-    for i in range(model.num_states):
-        h_t.append(model.encoders[i].sample_mean({"x": x0}))
-        a_list = [torch.zeros(_B, d).to(device) for d in [model.a_dim] + model.s_dims[i-1:i]]
-        feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": a_list}
-        s_t.append(model.posteriors[i].sample_mean(feed_dict))
-    return s_t
-
-
-def _sample_x(model, feed_dict):
-    with torch.no_grad():
-        _x = model.forward(feed_dict, False, sample=True)
-    x = feed_dict["x"].transpose(0, 1)  # BxT
-    _x = torch.stack(_x).transpose(0, 1)  # BxT
-    _x = torch.clamp(_x, 0, 1)
-    video = []
-    for i in range(4):
-        video.append(x[i*8:i*8+8])
-        video.append(_x[i*8:i*8+8])
-    video = torch.cat(video)  # B*2xT
-    return video
-
-
-def _train(model, feed_dict, epoch):
-    model.train()
-    model.optimizer.zero_grad()
-    loss, omake_dict = model.forward(feed_dict, True, epoch=epoch)
-    clip_grad_norm_(model.distributions.parameters(), 1000)
-    loss.backward()
-    model.optimizer.step()
-    return loss, omake_dict
-
-
-def _test(model, feed_dict, epoch):
-    model.eval()
-    with torch.no_grad():
-        loss, omake_dict = model.forward(feed_dict, False, epoch=epoch)
-    return loss, omake_dict
+    def sample_x(self, feed_dict):
+        with torch.no_grad():
+            _x = self.forward(feed_dict, False, sample=True)
+        x = feed_dict["x"].transpose(0, 1)  # BxT
+        _x = torch.stack(_x).transpose(0, 1)  # BxT
+        _x = torch.clamp(_x, 0, 1)
+        video = []
+        for i in range(4):
+            video.append(x[i*8:i*8+8])
+            video.append(_x[i*8:i*8+8])
+        video = torch.cat(video)  # B*2xT
+        return video
