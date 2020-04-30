@@ -7,6 +7,7 @@ import torch
 import sys
 import logzero
 from logzero import logger
+import mlflow
 
 
 def data_loop(args, epoch, loader, model, writer, interval, train=True):
@@ -30,15 +31,18 @@ def data_loop(args, epoch, loader, model, writer, interval, train=True):
         summ = update_summ(summ, info, _B)
 
         if itr % interval == 0:
+            summ = mean_summ(summ, loader.N)
             logger.info("({}) Epoch: {} {}".format(
-                ["Test", "Train"][train], epoch, mean_summ(summ, _B)))
+                ["Test", "Train"][train], epoch, summ))
             break
 
-    if writer:
-        video = model.sample_x(feed_dict) if epoch % 10 == 0 else None
-        # foo = model.sample_foo(feed_dict)
-        write_summ(summ, video, writer, loader.N, epoch, train)
+#     if writer:
+#         video = model.sample_x(feed_dict) if epoch % 10 == 0 else None
+#         # foo = model.sample_foo(feed_dict)
+#         write_summ(summ, video, writer, loader.N, epoch, train)
 
+    for k, v in summ.items():
+        mlflow.log_metric(["Test", "Train"][train] + "/" + k, v)
 
 def main():
     args = get_args()
@@ -51,6 +55,8 @@ def main():
     logzero.logfile(args.logfile, loglevel=args.loglevel)
     logger.info(args)
     slack("Start! " + str(sys.argv))
+
+    mlflow.start_run()
 
     SEED = args.seed
     torch.manual_seed(SEED)
