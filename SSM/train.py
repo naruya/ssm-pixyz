@@ -44,6 +44,8 @@ def data_loop(args, epoch, loader, model, writer, interval, train=True):
     for k, v in summ.items():
         mlflow.log_metric(["Test", "Train"][train] + "/" + k, v)
 
+    return summ
+
 def main():
     args = get_args()
 #     TRAIN_INTERVAL = int(256 / args.B)
@@ -75,15 +77,16 @@ def main():
     resume_epoch = 1 if not args.resume else args.resume_epoch
 
     for epoch in range(resume_epoch, args.epochs + 1):
-        data_loop(args, epoch, train_loader, model, writer, TRAIN_INTERVAL, train=True)
-        data_loop(args, epoch, test_loader, model, writer, TEST_INTERVAL, train=False)
-        if epoch % 10 == 1:
+        _    = data_loop(args, epoch, train_loader, model, writer, TRAIN_INTERVAL, train=True)
+        summ = data_loop(args, epoch, test_loader, model, writer, TEST_INTERVAL, train=False)
+        if epoch % 10 == 0:
             save_model(model, args.save_dir, epoch)
             load_model(model, args.save_dir, epoch)
+            slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
 
     save_model(model, args.save_dir, epoch)
     logger.info(args)
-    slack("Finish! " + str(sys.argv))
+    slack("Finish! {} {}".format(str(sys.argv), str(summ)))
 
 
 if __name__ == "__main__":
