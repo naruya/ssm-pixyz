@@ -90,24 +90,24 @@ def update_summ(summ, info, _B):
     return summ
 
 
-def mean_summ(summ, _B):
+def mean_summ(summ, N):
     for k, v in summ.items():
-        summ[k] = v / float(_B)
+        summ[k] = v / float(N)
     return summ
 
 
 def write_summ(summ, video, writer, N, epoch, train):
     prefix = "train_" if train else "test_"
     for k, v in summ.items():
-        v = v / N
         writer.add_scalar("epoch/" + prefix + k, v, epoch)
     if video:
         writer.add_video("epoch/" + prefix + "video", video, epoch)
 
 
 def slack(text):
+    # webhook_url: "https://hooks.slack.com/services/foo/bar/foobar"
     with open("slack.txt") as f:
-        webhook_url = f.read().split()[0]
+        webhook_url = f.read()
     requests.post(webhook_url, data = json.dumps({"text": text}))
 
 

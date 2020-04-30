@@ -2,6 +2,8 @@ logs/
 runs*/
 models/
 _models/
+logzero/
+mlruns/
 .nfs*
 hist.txt
 slack.txt
