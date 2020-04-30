@@ -26,8 +26,8 @@ class Base(nn.Module):
         self.train()
         self.optimizer.zero_grad()
         loss, info = self.forward(feed_dict, prior_sample=False)
-        clip_grad_norm_(self.distributions.parameters(), 1000)
         loss.backward()
+        clip_grad_norm_(self.distributions.parameters(), 1000)
         self.optimizer.step()
         if self.debug:
             check_params(self)
