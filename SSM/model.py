@@ -7,6 +7,7 @@ from pixyz.losses import KullbackLeibler, LogProb
 from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from core import Prior, Posterior, Encoder, Decoder
+from core2 import ResEncoder, ResDecoder
 from torch.nn.utils import clip_grad_norm_
 from utils import init_weights, flatten_dict, check_params
 from copy import deepcopy
@@ -66,8 +67,12 @@ class SSM(Base):
 
             prior = Prior(i, s_dim, a_dims, self.min_stddev).to(self.device)
             posterior = Posterior(i, s_dim, self.h_dim, a_dims, self.min_stddev).to(self.device)
-            encoder = Encoder(i).to(self.device)
-            decoder = Decoder(i, s_dim).to(self.device)
+            if args.resnet:
+                encoder = ResEncoder(i).to(self.device)
+                decoder = ResDecoder(i, s_dim).to(self.device)
+            else:
+                encoder = Encoder(i).to(self.device)
+                decoder = Decoder(i, s_dim).to(self.device)
             s_loss_cls = KullbackLeibler(posterior, prior)
             x_loss_cls = LogProb(decoder)
 

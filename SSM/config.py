@@ -13,6 +13,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--comment", type=str, default=None)
 
     parser.add_argument("--model", type=str, default="SSM")
+    parser.add_argument('--resnet', action='store_true')
     parser.add_argument("--B", type=int, default=256)
     parser.add_argument("--T", type=int, default=10)
     parser.add_argument("--s_dims", type=int, nargs="+", default=[])
