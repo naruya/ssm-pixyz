@@ -2,6 +2,7 @@ import argparse
 import os
 import subprocess
 from datetime import datetime
+import sys
 
 
 # TODO: MLFlow
@@ -55,6 +56,6 @@ def get_args(jupyter=False, args=None):
     args.debug = True if args.loglevel <= 10 else False
 
     with open("hist.txt", mode='a') as f:
-        f.write("{} {} {}\n".format(timestamp, ghash, args))
+        f.write("{} {} {}\n".format(timestamp, ghash, sys.argv, args))
 
     return args
