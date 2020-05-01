@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from pixyz.distributions import Normal, Deterministic
 
 
 class ResnetBlock(nn.Module):
@@ -84,11 +83,11 @@ def actvn(x):
     return out
 
 
-class ResEncoder(Deterministic):
+class ResEncoder(nn.Module):
     def __init__(self, k, size=64, num_filters=64, max_filters=1024):
-        super(ResEncoder, self).__init__(cond_var=["x"], var=["h"])
+        super(ResEncoder, self).__init__()
         self.name = str(k) + "-" + self.__class__.__name__.lower()
-        
+
         # make sure that the max_filters are divisible by 2
         assert max_filters % 2 == 0, "Maximum filters is not an even number"
         assert num_filters % 2 == 0, "Num filters in first layer is not an even number"
@@ -152,13 +151,14 @@ class ResEncoder(Deterministic):
         # apply the final fully connected layer
         out = self.fc(actvn(out))
 
-        return {"h": out}
+        return out
 
 
-class ResDecoder(Normal):
-    def __init__(self, k, s_dim, size=64, final_channels=64, max_channels=1024):
-        super(ResDecoder, self).__init__(cond_var=["s"], var=["x"])
+class ResDecoder(nn.Module):
+    def __init__(self, k, s_dim, device, size=64, final_channels=64, max_channels=1024):
+        super(ResDecoder, self).__init__()
         self.name = str(k) + "-" + self.__class__.__name__.lower()
+        self.device = device
 
         # some peculiar assertions
         assert size >= 4, "No point in generating images less than (4 x 4)"
@@ -196,17 +196,17 @@ class ResDecoder(Normal):
         self.conv_img = nn.Conv2d(nf, 3, 3, padding=1)
         
         
-    def forward(self, s):
+    def forward(self, s_t):
         """
         forward pass of the network
         :param z: input z (latent vector) => [Batchsize x latent_size]
         :return:
         """
 
-        batch_size = s.size(0)
+        batch_size = s_t.size(0)
 
         # first layer (Fully Connected)
-        out = self.fc(s)
+        out = self.fc(s_t)
         # Reshape output into volume
         out = out.view(batch_size, self.nf0, self.s0, self.s0)
 
@@ -217,4 +217,4 @@ class ResDecoder(Normal):
         out = self.conv_img(actvn(out))
         out = torch.tanh(out)  # our pixel values are in range [-1, 1]
 
-        return {"loc": out, "scale": 1.0}
+        return out, out.new_ones(out.size())

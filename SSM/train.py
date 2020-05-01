@@ -18,14 +18,14 @@ def data_loop(args, epoch, loader, model, writer, interval, train=True):
 
         x, a, itr = batch
         _B = x.size(0)
-        x = x.to(args.device).transpose(0, 1)  # T,B,3,28,28
-        a = a.to(args.device).transpose(0, 1)  # T,B,1
-        feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
+        x = x.transpose(0, 1).to(args.device)  # T,B,3,28,28
+        a = a.transpose(0, 1).to(args.device)  # T,B,1
+        x_0 = x[0].clone()
 
         if train:
-            loss, info = model.train_(feed_dict)
+            loss, info = model.train_(x_0, x, a)
         else:
-            loss, info = model.test_(feed_dict)
+            loss, info = model.test_(x_0, x, a)
 
         logger.debug(info)
         summ = update_summ(summ, info, _B)
@@ -79,9 +79,10 @@ def main():
     for epoch in range(resume_epoch, args.epochs + 1):
         _    = data_loop(args, epoch, train_loader, model, writer, TRAIN_INTERVAL, train=True)
         summ = data_loop(args, epoch, test_loader, model, writer, TEST_INTERVAL, train=False)
+#         if epoch % 1 == 0:
         if epoch % 10 == 0:
             save_model(model, args.save_dir, epoch)
-            load_model(model, args.save_dir, epoch)
+#             load_model(model, args.save_dir, epoch)
             slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
 
     save_model(model, args.save_dir, epoch)

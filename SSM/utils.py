@@ -7,11 +7,13 @@ from logzero import logger
 from config import *
 
 
+# data_parallel ver (dist.module.name)
+
 def save_model(model, save_dir, epoch):
     path = os.path.join(save_dir, "epoch-{:05}".format(epoch))
     os.makedirs(path, exist_ok=True)
     for i, dist in enumerate(model.distributions):
-        torch.save(dist.state_dict(), os.path.join(path, dist.name + ".pt"))
+        torch.save(dist.state_dict(), os.path.join(path, dist.module.name + ".pt"))
     torch.save(model.optimizer.state_dict(), os.path.join(path, "optim.pt"))
 
 
@@ -20,7 +22,7 @@ def load_model(model, load_dir, epoch, load_optim=True):
     path = os.path.join(load_dir, "epoch-{:05}".format(epoch))
     files = os.listdir(path)
     for i, dist in enumerate(model.all_distributions):
-        file = dist.name + ".pt"
+        file = dist.module.name + ".pt"
         if file in files:
             dist.load_state_dict(torch.load(os.path.join(path, file)))
             logger.debug("{} found!".format(file))
