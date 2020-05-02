@@ -94,7 +94,7 @@ class SSM(Base):
 
         if self.debug:
             for dist in self.all_distributions:
-                logger.debug(dist.name)
+                logger.debug(dist.module.name)
                 for param in dist.parameters():
                     logger.debug(param.requires_grad)
 

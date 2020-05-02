@@ -66,7 +66,7 @@ def init_weights(model):
 def check_params(model):
     for name, param in model.named_parameters():
         if param.requires_grad:
-            logger.debug(str(name.ljust(30)) + \
+            logger.debug(str(name.ljust(40)) + \
                   "param: {:12.6f} ".format(torch.max(torch.abs(param.data)).item()) + \
                   "grad: {:12.6f} ".format(torch.max(torch.abs(param.grad)).item()))
 
