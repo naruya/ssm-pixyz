@@ -9,6 +9,11 @@ hist.txt
 slack.txt
 Untitled.ipynb
 
+# ABCI
+run.sh*
+module/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
