@@ -34,7 +34,10 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--load_epoch", type=int, default=None)
     parser.add_argument('--resume', action='store_true')
 
-    args = parser.parse_args()
+    if not jupyter:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args=args)
 
     ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')

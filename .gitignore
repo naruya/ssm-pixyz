@@ -8,6 +8,7 @@ mlruns/
 hist.txt
 slack.txt
 Untitled.ipynb
+*.gif
 
 # ABCI
 run.sh*

@@ -180,7 +180,7 @@ class SSM(Base):
 
     def sample_x(self, x_0, x, a):
         with torch.no_grad():
-            _x = self.forward(x_0, x, a, False, sample=True)
+            _x = self.forward(x_0, x, a, False, return_x=True)
         x = x.transpose(0, 1)  # BxT
         _x = torch.stack(_x).transpose(0, 1)  # BxT
         _x = torch.clamp(_x, 0, 1)
