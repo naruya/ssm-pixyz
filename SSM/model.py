@@ -100,7 +100,7 @@ class SSM(Base):
 
         self.distributions = nn.ModuleList(self.distributions)
         init_weights(self.distributions)
-        self.optimizer = optim.Adam(self.distributions.parameters())
+        self.optimizer = optim.Adam(self.distributions.parameters(), lr=args.lr)
 
     def forward(self, x_0, x, a, prior_sample=True, return_x=False):
         keys = set(locals().keys())
