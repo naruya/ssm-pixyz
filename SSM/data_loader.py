@@ -42,10 +42,11 @@ class PushDataLoader:
             / 255.0
         )
         a = data["action"]
-        _s = np.random.randint(30 - self.T + 1)
-        x = x[:, _s : _s + self.T]
-        a = a[:, _s : _s + self.T]
-        return {"video": x, "action": a}
+        _s = np.random.randint(30 - (self.T+1) + 1)
+        x_0 = x[:, _s]  # 1 frame for preddicting s_0
+        x = x[:, _s+1:_s+1+self.T]
+        a = a[:, _s+1:_s+1+self.T]
+        return {"x_0": x_0, "x": x, "a": a}
 
     def __iter__(self):
         return self
@@ -54,8 +55,8 @@ class PushDataLoader:
         self.itr += 1
         batch = next(self.ds)
         # TODO: use state or not
-        video, action = batch["video"], batch["action"]
-        return torch.from_numpy(video), torch.from_numpy(action), self.itr
+        x_0, x, a = batch["x_0"], batch["x"], batch["a"]
+        return torch.from_numpy(x_0), torch.from_numpy(x), torch.from_numpy(a), self.itr
 
     def __len__(self):
         return self.L
