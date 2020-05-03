@@ -1,6 +1,7 @@
 import os
 import torch
 from torch import nn
+import numpy as np
 import requests
 import json
 from logzero import logger
@@ -71,9 +72,9 @@ def check_params(model):
                   "grad: {:12.6f} ".format(torch.max(torch.abs(param.grad)).item()))
 
 
-def flatten_dict(info):
+def flatten_dict(inp_dict):
     return_dict = {}
-    for k, v in info.items():
+    for k, v in inp_dict.items():
         if type(v) is list:
             return_dict.update({k + "_" + str(i) : v[i].item() for i in range(len(v))})
         else:
@@ -101,12 +102,11 @@ def mean_summ(summ, N):
     return summ
 
 
-def write_summ(summ, video, writer, N, epoch, train):
-    prefix = "train_" if train else "test_"
-    for k, v in summ.items():
-        writer.add_scalar("epoch/" + prefix + k, v, epoch)
-    if video:
-        writer.add_video("epoch/" + prefix + "video", video, epoch)
+def rename_summ(summ, prefix="", suffix=""):
+    keys, values = summ.keys(), summ.values()
+    keys = prefix + np.array(list(keys), dtype=object) + suffix
+    summ = dict(zip(keys, values))
+    return summ
 
 
 def slack(text):
@@ -114,71 +114,3 @@ def slack(text):
     with open(".slack.txt") as f:
         webhook_url = f.read()
     requests.post(webhook_url, data = json.dumps({"text": text}))
-
-
-# # load all weigts
-# def doredakke():
-#     args = get_args()
-#     logzero.loglevel(args.loglevel)
-#
-#     TRAIN_INTERVAL = int(43264 / args.B)
-#     TEST_INTERVAL = int(256 / args.B)
-#     device = args.device_ids[0]
-#
-#     SEED = args.seed
-#     torch.manual_seed(SEED)
-#     torch.cuda.manual_seed(SEED)
-#     torch.backends.cudnn.deterministic = True
-#
-#     torch.autograd.set_detect_anomaly(True)
-#
-#     print(args.log_dir)
-#
-#     writer = None
-#
-#     paths = os.listdir("_model/Feb18_23-43-15_SSM_s1024_88a3785")
-#
-#     epoch=1
-#     for path in paths:
-#         print(path)
-#         model = SSM(args, device)
-#         path = os.path.join("_model", "Feb18_23-43-15_SSM_s1024_88a3785", path)
-#         for i, dist in enumerate(model.distributions):
-#             dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
-#         model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))
-#
-#         test_loader = PushDataLoader(args, split="test", shuffle=False)
-#         data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-
-
-# # resume
-#     if args.resume:
-#         load_model(model, args.resume_name, args.resume_time)
-#
-#     path = os.path.join("_model", "Feb18_23-43-15_SSM_s1024_88a3785", "Feb19_03-00-40")
-#     for i, dist in enumerate(model.distributions):
-#         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
-#     model.optimizer.load_state_dict(torch.load(os.path.join(path, "opt.pt")))
-
-#     s_dim = "s" + str(args.s_dim[0])
-#     if len(args.s_dim) > 1:
-#         for i, d in enumerate(args.s_dim[1:]):
-#             s_dim += "-" + str(d)
-#
-#     if args.resume:
-#         assert args.resume_name and args.resume_time and args.resume_itr and args.resume_epoch, "invalid resume options"
-#
-#     if not args.resume:
-#         log_dir = os.path.join(
-#             args.runs_dir,
-#             datetime.now().strftime("%b%d_%H-%M-%S")
-#             + "_" + args.model + "_" + s_dim + "_B" + str(args.B)
-#             + "_" + ghash
-#         )
-#         if args.comment:
-#             log_dir += "_" + args.comment
-#     else:
-#         log_dir = os.path.join(
-#             args.runs_dir,
-#             args.resume_name
-#         )
