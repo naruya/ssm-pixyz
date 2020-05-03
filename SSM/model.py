@@ -26,7 +26,7 @@ class Base(nn.Module):
         self.optimizer.zero_grad()
         loss, info = self(x_0, x, a, prior_sample=False)
         loss.backward()
-        clip_grad_norm_(self.distributions.parameters(), 1000)
+        # clip_grad_norm_(self.distributions.parameters(), 1000)
         self.optimizer.step()
         if self.debug:
             check_params(self)
