@@ -38,7 +38,7 @@ def data_loop(args, epoch, loader, model, interval, train=True):
 def main():
     args = get_args()
 
-#     TRAIN_INTERVAL = int(256 / args.B)
+    # TRAIN_INTERVAL = int(256 / args.B)
     TRAIN_INTERVAL = int(43264 / args.B)
     TEST_INTERVAL = int(256 / args.B)
 
@@ -69,21 +69,24 @@ def main():
     resume_epoch = 1 if not args.resume else args.resume_epoch
 
     for epoch in range(resume_epoch, args.epochs + 1):
-        _    = data_loop(
+        _summ = data_loop(
             args, epoch, train_loader, model, TRAIN_INTERVAL, True)
         summ = data_loop(
             args, epoch, test_loader, model, TEST_INTERVAL, False)
-#         if epoch % 1 == 0:
+        # if epoch % 1 == 0:
         if epoch % 10 == 0:
             save_model(model, args.save_dir, epoch)
-#             load_model(model, args.save_dir, epoch)
+            # load_model(model, args.save_dir, epoch)
+            slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
+        if args.debug:
+            slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(_summ)))
             slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
 
     save_model(model, args.save_dir, epoch)
-    logger.info(args)
     slack("Finish! {} {}".format(sys.argv, summ))
 
-    mlflow.end_run()
+    if not args.debug:
+        mlflow.end_run()
 
 
 if __name__ == "__main__":

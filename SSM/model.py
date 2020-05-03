@@ -5,7 +5,8 @@ from torch import nn, optim
 from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
 from core import Prior, Posterior, Encoder, Decoder
-from core2 import ResEncoder, ResDecoder
+from core_res_encdec import ResEncoder, ResDecoder
+from core_res_transition import ResPrior, ResPosterior
 from torch.nn.utils import clip_grad_norm_
 from utils import init_weights, flatten_dict, check_params
 from copy import deepcopy
@@ -70,11 +71,16 @@ class SSM(Base):
             s_dim = self.s_dims[i]
             a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
 
-            prior = Prior(i, s_dim, a_dims,
-                          self.min_stddev).to(self.device)
             posterior = Posterior(i, s_dim, self.h_dim, a_dims,
                                   self.min_stddev).to(self.device)
-            if args.resnet:
+
+            if args.res_transition:
+                prior = ResPrior(i, s_dim, a_dims,
+                              self.min_stddev).to(self.device)
+            else:
+                prior = Prior(i, s_dim, a_dims,
+                              self.min_stddev).to(self.device)
+            if args.res_encdec:
                 encoder = ResEncoder(i).to(self.device)
                 decoder = ResDecoder(i, s_dim, self.device).to(self.device)
             else:
@@ -183,6 +189,7 @@ class SSM(Base):
 
             _locals = locals()
             info = flatten_dict({key:_locals[key] for key in keys})
+            info = sorted(info.items())
             return loss, info
 
     def sample_s_0(self, x_0):
