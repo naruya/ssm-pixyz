@@ -1,3 +1,12 @@
+```
+- tensorflow-datasets       1.3.2
+- tensorflow-estimator      2.0.1
+- tensorflow-gpu            2.0.0
+- tensorflow-metadata       0.15.2
+- torch                     1.3.1+cu92
+- torchvision               0.4.2+cu92
+```
+
 ### step1
 - `# python train.py --s_dims 64`
   - -> "./models/<timestamp1\>/epoch-00010/*.pt"
