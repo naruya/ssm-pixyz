@@ -42,6 +42,7 @@ def get_args(jupyter=False, args=None):
 
     ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
+    args.ghash = ghash
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     args.load = True if args.load_name or args.load_epoch else False
