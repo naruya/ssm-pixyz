@@ -57,13 +57,12 @@ class SSM(Base):
         self.min_stddev = args.min_stddev
         self.num_states = len(self.s_dims)
         self.static_hierarchy = args.static_hierarchy
+        self.args = args
 
         self.priors = []
         self.posteriors = []
         self.encoders = []
         self.decoders = []
-        self.s_loss_clss = []
-        self.x_loss_clss = []
         self.distributions = []  # for train, save_model
         self.all_distributions = []  # for load_model
 
@@ -121,13 +120,16 @@ class SSM(Base):
         init_weights(self.distributions)
         self.optimizer = optim.Adam(self.distributions.parameters(), lr=args.lr)
 
+    # def forward(self, x_0, a, x=None, prior_sample=True, return_x=False):
     def forward(self, x_0, x, a, prior_sample=True, return_x=False):
         keys = set(locals().keys())
 
         loss = 0.  # for backprop
-        x_loss = 0.  # for comparisons
+        x_loss_p = 0.  # for comparisons. equal to x_losss_p[-1]
+        x_loss_q = 0.  # for comparisons. equal to x_losss_q[-1]
         s_losss = [0.] * self.num_states
-        x_losss = [0.] * self.num_states
+        x_losss_p = [0.] * self.num_states
+        x_losss_q = [0.] * self.num_states
         if self.debug:
             s_aux_losss = [0.] * self.num_states
             s_abss_p = [0.] * self.num_states
@@ -140,7 +142,8 @@ class SSM(Base):
         x = x.transpose(0, 1).to(self.device)  # T,B,3,28,28
         a = a.transpose(0, 1).to(self.device)  # T,B,4
         _T, _B = x.size(0), x.size(1)
-        _x = []
+        _x_p = []
+        _x_q = []
 
         s_prevs = self.sample_s_0(x_0)
 
@@ -157,7 +160,10 @@ class SSM(Base):
                 p = Normal(*self.priors[i](s_prev, a_list))
                 # KL(q,p)! Not KL(p,q)!
                 s_losss[i] = torch.sum(kl_divergence(q, p), dim=[1]).mean()
-                s_t = p.mean if prior_sample else q.rsample()
+                # s_t = p.mean if prior_sample else q.rsample()
+                s_t_p = p.mean if prior_sample else p.rsample()
+                s_t_q = q.rsample()
+                s_t = s_t_p if prior_sample else s_t_q
                 s_ts.append(s_t)
 
                 if self.debug:
@@ -168,24 +174,35 @@ class SSM(Base):
                     s_abss_q[i] += q.mean.abs().mean()
                     s_stds_q[i] += q.stddev.mean()
 
-                decoder_dist = Normal(*self.decoders[i](s_t))
-                x_losss[i] += - torch.sum(decoder_dist.log_prob(x_t),
+                decoder_dist_p = Normal(*self.decoders[i](s_t_p))
+                x_losss_p[i] += - torch.sum(decoder_dist_p.log_prob(x_t),
+                                          dim=[1,2,3]).mean()
+                decoder_dist_q = Normal(*self.decoders[i](s_t_q))
+                x_losss_q[i] += - torch.sum(decoder_dist_q.log_prob(x_t),
                                           dim=[1,2,3]).mean()
 
             if return_x:
-                _x.append(decoder_dist.mean)
+                _x_p.append(decoder_dist_p.mean)
+                _x_q.append(decoder_dist_q.mean)
+
             s_prevs = s_ts
 
         if return_x:
-            _x = torch.stack(_x).transpose(0, 1)
-            _x = torch.clamp(_x, 0, 1)
-            return _x
+            _x_p = torch.stack(_x_p).transpose(0, 1)
+            _x_p = torch.clamp(_x_p, 0, 1)
+            _x_q = torch.stack(_x_q).transpose(0, 1)
+            _x_q = torch.clamp(_x_q, 0, 1)
+            return _x_p, _x_q
         else:
             for i in range(self.num_states):
                 if i not in self.static_hierarchy:
-                    loss += s_losss[i] + x_losss[i]
+                    loss += s_losss[i] + x_losss_q[i]
+                    if self.args.p_reconst_loss:
+                        loss += x_losss_p[i]
+                    # if self.args.s_aux_loss:
                     # loss += self.gamma * s_aux_losss[i]
-            x_loss = x_losss[-1]
+            x_loss_p = x_losss_p[-1]
+            x_loss_q = x_losss_q[-1]
 
             _locals = locals()
             info = flatten_dict({key:_locals[key] for key in keys})
@@ -208,7 +225,10 @@ class SSM(Base):
             s_ts.append(s_t)
         return s_ts
 
-    def sample_x(self, x_0, x, a):
+    def sample_x_temp(self, x_0, x, a):
         with torch.no_grad():
-            _x = self.forward(x_0, x, a, False, return_x=True)
-        return x, _x
+            _x_p, _x_q = self.forward(x_0, x, a, False, return_x=True)
+        return _x_p, _x_q
+
+    # def sample_x(self, x_0, a):
+    #     return _x_p
