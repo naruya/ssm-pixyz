@@ -55,7 +55,10 @@ def main():
 
     logzero.loglevel(args.loglevel)
     logzero.logfile(args.logfile, loglevel=args.loglevel)
+    logger.info("git hash: " + args.ghash)
+    logger.info("command: " + str(sys.argv))
     logger.info(args)
+
     slack("Start! " + str(sys.argv))
 
     mlflow.start_run()
