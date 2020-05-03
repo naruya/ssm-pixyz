@@ -53,7 +53,6 @@ class SSM(Base):
         self.s_dims = args.s_dims  # list
         self.a_dim = args.a_dim
         self.h_dim = args.h_dim
-        self.gamma = args.gamma
         self.min_stddev = args.min_stddev
         self.num_states = len(self.s_dims)
         self.static_hierarchy = args.static_hierarchy
@@ -197,10 +196,10 @@ class SSM(Base):
             for i in range(self.num_states):
                 if i not in self.static_hierarchy:
                     loss += s_losss[i] + x_losss_q[i]
-                    if self.args.p_reconst_loss:
-                        loss += x_losss_p[i]
-                    # if self.args.s_aux_loss:
-                    # loss += self.gamma * s_aux_losss[i]
+                    if self.args.beta_x_p:
+                        loss += self.args.beta_x_p * x_losss_p[i]
+                    # if self.args.beta_s01:
+                    # loss += self.args.beta_s01 * s_aux_losss[i]
             x_loss_p = x_losss_p[-1]
             x_loss_q = x_losss_q[-1]
 

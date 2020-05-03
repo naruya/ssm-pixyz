@@ -9,6 +9,7 @@ import sys
 def get_args(jupyter=False, args=None):
     parser = argparse.ArgumentParser(description="description")
     parser.add_argument("--device_ids", type=int, nargs="+", default=[0])
+    parser.add_argument("--timestamp", type=str, default=None)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--loglevel", type=int, default=20)
     parser.add_argument("--comment", type=str, default=None)
@@ -16,15 +17,15 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--model", type=str, default="SSM")
     parser.add_argument('--res_encdec', action='store_true')
     parser.add_argument('--res_transition', action='store_true')
-    parser.add_argument('--p_reconst_loss', action='store_true')
+    parser.add_argument('--beta_x_p', type=float, default=None)
+    parser.add_argument('--min_stddev', type=float, default=1e-5)
+
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--B", type=int, default=256)
     parser.add_argument("--T", type=int, default=10)
     parser.add_argument("--s_dims", type=int, nargs="+", default=[])
     parser.add_argument("--h_dim", type=int, default=1024)
     parser.add_argument("--a_dim", type=int, default=4)
-    parser.add_argument('--gamma', type=float, default=1e-5)
-    parser.add_argument('--min_stddev', type=float, default=1e-5)
     parser.add_argument("--epochs", type=int, default=10000)
     parser.add_argument("--static_hierarchy", type=int, nargs="+", default=[])
 
@@ -42,14 +43,13 @@ def get_args(jupyter=False, args=None):
     else:
         args = parser.parse_args(args=args)
 
-    ghash = subprocess.check_output(
+    args.ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    args.ghash = ghash
-    args.timestamp = timestamp
+    if not args.timestamp:
+        args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
 
     args.load = True if args.load_name or args.load_epoch else False
-    args.name = timestamp if not args.resume else args.load_name
+    args.name = args.timestamp if not args.resume else args.load_name
 
     args.log_dir = os.path.join(args.runs_dir, args.name)  # for tensorboard
     args.save_dir = os.path.join(args.models_dir, args.name)  # for save_model()
@@ -64,6 +64,6 @@ def get_args(jupyter=False, args=None):
     args.debug = True if args.loglevel <= 10 else False
 
     with open(".hist.txt", mode='a') as f:
-        f.write("{} {} {}\n".format(timestamp, ghash, sys.argv, args))
+        f.write("{} {} {}\n".format(args.timestamp, args.ghash, sys.argv, args))
 
     return args

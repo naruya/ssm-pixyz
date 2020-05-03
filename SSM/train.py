@@ -31,7 +31,7 @@ def data_loop(args, epoch, loader, model, interval, train=True):
             break
 
     summ = rename_summ(summ, prefix=prefix + "/")
-    if not args.debug: mlflow.log_metrics(summ, epochs)
+    if not args.debug: mlflow.log_metrics(summ, epoch)
 
     return summ
 
@@ -51,7 +51,8 @@ def main():
     if not args.debug:
         logzero.logfile(args.logfile, loglevel=args.loglevel)
         slack("Start! " + str(sys.argv))
-        mlflow.start_run()
+        mlflow.start_run(run_name=args.timestamp)
+        mlflow.log_params(vars(args))
 
     logzero.loglevel(args.loglevel)
     logger.info("git hash: " + args.ghash)
