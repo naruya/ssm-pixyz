@@ -42,8 +42,9 @@ def get_args(jupyter=False, args=None):
 
     ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
-    args.ghash = ghash
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    args.ghash = ghash
+    args.timestamp = timestamp
 
     args.load = True if args.load_name or args.load_epoch else False
     args.name = timestamp if not args.resume else args.load_name
@@ -60,7 +61,7 @@ def get_args(jupyter=False, args=None):
     args.device = args.device_ids[0]
     args.debug = True if args.loglevel <= 10 else False
 
-    with open("hist.txt", mode='a') as f:
+    with open(".hist.txt", mode='a') as f:
         f.write("{} {} {}\n".format(timestamp, ghash, sys.argv, args))
 
     return args

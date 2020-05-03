@@ -111,7 +111,7 @@ def write_summ(summ, video, writer, N, epoch, train):
 
 def slack(text):
     # webhook_url: "https://hooks.slack.com/services/foo/bar/foobar"
-    with open("slack.txt") as f:
+    with open(".slack.txt") as f:
         webhook_url = f.read()
     requests.post(webhook_url, data = json.dumps({"text": text}))
 

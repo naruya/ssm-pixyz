@@ -1,12 +1,11 @@
 logs/
 runs*/
 models/
-_models/
-logzero/
 mlruns/
+.models/
 .nfs*
-hist.txt
-slack.txt
+.hist.txt
+.slack.txt
 Untitled.ipynb
 *.gif
 
