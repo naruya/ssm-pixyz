@@ -206,7 +206,7 @@ class SSM(Base):
 
             _locals = locals()
             info = flatten_dict({key:_locals[key] for key in keys})
-            info = sorted(info.items())
+            info = dict(sorted(info.items()))
             return loss, info
 
     def sample_s_0(self, x_0):
