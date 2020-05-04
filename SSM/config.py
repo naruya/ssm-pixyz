@@ -44,7 +44,7 @@ def get_args(jupyter=False, args=None):
 
     args.ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
-    args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S%f")
     args.job_id = os.environ.get('JOB_ID')  # ABCI
 
     args.load = True if args.load_name or args.load_epoch else False
