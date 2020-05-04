@@ -9,7 +9,6 @@ import sys
 def get_args(jupyter=False, args=None):
     parser = argparse.ArgumentParser(description="description")
     parser.add_argument("--device_ids", type=int, nargs="+", default=[0])
-    parser.add_argument("--timestamp", type=str, default=None)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--loglevel", type=int, default=20)
     parser.add_argument("--comment", type=str, default=None)
@@ -45,8 +44,8 @@ def get_args(jupyter=False, args=None):
 
     args.ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
-    if not args.timestamp:
-        args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    args.job_id = os.environ.get('JOB_ID')  # ABCI
 
     args.load = True if args.load_name or args.load_epoch else False
     args.name = args.timestamp if not args.resume else args.load_name
@@ -64,6 +63,10 @@ def get_args(jupyter=False, args=None):
     args.debug = True if args.loglevel <= 10 else False
 
     with open(".hist.txt", mode='a') as f:
-        f.write("{} {} {}\n".format(args.timestamp, args.ghash, sys.argv, args))
+        f.write("{} {} {} {} {}\n".format(args.timestamp,
+                                          args.job_id,
+                                          args.ghash,
+                                          sys.argv,
+                                          args))
 
     return args

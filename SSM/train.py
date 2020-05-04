@@ -55,7 +55,8 @@ def main():
         mlflow.log_params(vars(args))
 
     logzero.loglevel(args.loglevel)
-    logger.info("git hash: " + args.ghash)
+    logger.info("job_id: " + args.job_id)
+    logger.info("ghash: " + args.ghash)
     logger.info("command: " + str(sys.argv))
     logger.info(args)
 
