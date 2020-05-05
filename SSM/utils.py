@@ -102,9 +102,10 @@ def mean_summ(summ, N):
     return summ
 
 
-def rename_summ(summ, prefix="", suffix=""):
+def format_summ(summ, prefix="", suffix="", decimals=3):
     keys, values = summ.keys(), summ.values()
     keys = prefix + np.array(list(keys), dtype=object) + suffix
+    values = np.round(np.array(list(values), dtype=np.float32), decimals=decimals)
     summ = dict(zip(keys, values))
     return summ
 

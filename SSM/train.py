@@ -30,7 +30,7 @@ def data_loop(args, epoch, loader, model, interval, train=True):
                 prefix, epoch, summ))
             break
 
-    summ = rename_summ(summ, prefix=prefix + "/")
+    summ = format_summ(summ, prefix=prefix + "/")
     if not args.debug: mlflow.log_metrics(summ, epoch)
 
     return summ
