@@ -17,7 +17,9 @@ def get_args(jupyter=False, args=None):
     parser.add_argument('--res_encdec', action='store_true')
     parser.add_argument('--res_transition', action='store_true')
     parser.add_argument('--beta_x_p', type=float, default=None)
+    parser.add_argument('--beta_s01', type=float, default=None)
     parser.add_argument('--min_stddev', type=float, default=1e-5)
+    parser.add_argument('--posterior_s_0', action='store_true')
 
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--B", type=int, default=256)
@@ -45,7 +47,7 @@ def get_args(jupyter=False, args=None):
     args.ghash = subprocess.check_output(
         "git rev-parse --short HEAD".split()).strip().decode('utf-8')
     args.timestamp = datetime.now().strftime("%y%m%d_%H%M%S%f")
-    args.job_id = os.environ.get('JOB_ID')  # ABCI
+    args.job_id = str(os.environ.get('JOB_ID'))  # ABCI  # None -> "None"
 
     args.load = True if args.load_name or args.load_epoch else False
     args.name = args.timestamp if not args.resume else args.load_name

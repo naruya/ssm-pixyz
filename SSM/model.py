@@ -4,7 +4,7 @@ import torch
 from torch import nn, optim
 from torch.distributions import Normal
 from torch.distributions.kl import kl_divergence
-from core import Prior, Posterior, Encoder, Decoder
+from core import Prior, Posterior, Encoder, Decoder, Posterior_s_0
 from core_res_encdec import ResEncoder, ResDecoder
 from core_res_transition import ResPrior, ResPosterior
 from torch.nn.utils import clip_grad_norm_
@@ -53,15 +53,15 @@ class SSM(Base):
         self.s_dims = args.s_dims  # list
         self.a_dim = args.a_dim
         self.h_dim = args.h_dim
-        self.min_stddev = args.min_stddev
         self.num_states = len(self.s_dims)
-        self.static_hierarchy = args.static_hierarchy
         self.args = args
 
         self.priors = []
         self.posteriors = []
         self.encoders = []
         self.decoders = []
+        if args.posterior_s_0:
+            self.posterior_s_0s = []
         self.distributions = []  # for train, save_model
         self.all_distributions = []  # for load_model
 
@@ -70,14 +70,14 @@ class SSM(Base):
             a_dims = [self.a_dim] + self.s_dims[i-1:i]  # use s_dims[i-1]
 
             posterior = Posterior(i, s_dim, self.h_dim, a_dims,
-                                  self.min_stddev).to(self.device)
+                                  args.min_stddev).to(self.device)
 
             if args.res_transition:
                 prior = ResPrior(i, s_dim, a_dims,
-                              self.min_stddev).to(self.device)
+                              args.min_stddev).to(self.device)
             else:
                 prior = Prior(i, s_dim, a_dims,
-                              self.min_stddev).to(self.device)
+                              args.min_stddev).to(self.device)
             if args.res_encdec:
                 encoder = ResEncoder(i).to(self.device)
                 decoder = ResDecoder(i, s_dim, self.device).to(self.device)
@@ -99,15 +99,23 @@ class SSM(Base):
             self.posteriors.append(posterior)
             self.encoders.append(encoder)
             self.decoders.append(decoder)
-
             dists = [prior, posterior, encoder, decoder]
+
+            if args.posterior_s_0:
+                posterior_s_0 = Posterior_s_0(i, s_dim, self.h_dim,
+                                  args.min_stddev).to(self.device)
+                posterior_s_0 = nn.DataParallel(posterior_s_0,
+                                                device_ids=args.device_ids)
+                self.posterior_s_0s.append(posterior_s_0)
+                dists.append(posterior_s_0)
+
             self.all_distributions += dists
-            if i not in self.static_hierarchy:  # 2とか
+            if i not in self.args.static_hierarchy:  # 2とか
                 self.distributions += dists  # trainable
             else:  # 1とか
                 for dist in dists:
                     for param in dist.parameters():
-                        param.requires_grad = False  # 早くなる?
+                        param.requires_grad = False  # 早くなる?結果変わらない?
 
         if self.debug:
             for dist in self.all_distributions:
@@ -124,13 +132,16 @@ class SSM(Base):
         keys = set(locals().keys())
 
         loss = 0.  # for backprop
-        x_loss_p = 0.  # for comparisons. equal to x_losss_p[-1]
-        x_loss_q = 0.  # for comparisons. equal to x_losss_q[-1]
         s_losss = [0.] * self.num_states
         x_losss_p = [0.] * self.num_states
         x_losss_q = [0.] * self.num_states
+        s01_losss = [0.] * self.num_states
+
+        if self.args.posterior_s_0:
+            s_0_s_loss = None
+            s_0_x_loss = None
+
         if self.debug:
-            s_aux_losss = [0.] * self.num_states
             s_abss_p = [0.] * self.num_states
             s_stds_p = [0.] * self.num_states
             s_abss_q = [0.] * self.num_states
@@ -140,11 +151,15 @@ class SSM(Base):
 
         x = x.transpose(0, 1).to(self.device)  # T,B,3,28,28
         a = a.transpose(0, 1).to(self.device)  # T,B,4
+        x_0 = x_0.to(self.device)
         _T, _B = x.size(0), x.size(1)
         _x_p = []
         _x_q = []
 
-        s_prevs = self.sample_s_0(x_0)
+        if self.args.posterior_s_0:
+            s_prevs, s_0_s_loss, s_0_x_loss = self.sample_s_0(x_0)
+        else:
+            s_prevs = self.sample_s_0(x_0)
 
         for t in range(_T):
             x_t, a_t = x[t], a[t]
@@ -157,17 +172,14 @@ class SSM(Base):
 
                 q = Normal(*self.posteriors[i](s_prev, h_t, a_list))
                 p = Normal(*self.priors[i](s_prev, a_list))
-                # KL(q,p)! Not KL(p,q)!
                 s_losss[i] = torch.sum(kl_divergence(q, p), dim=[1]).mean()
-                # s_t = p.mean if prior_sample else q.rsample()
                 s_t_p = p.mean if prior_sample else p.rsample()
                 s_t_q = q.rsample()
                 s_t = s_t_p if prior_sample else s_t_q
                 s_ts.append(s_t)
+                s01_losss[i] += torch.sum(kl_divergence(q, Normal(0., 1.)), dim=[1]).mean()
 
                 if self.debug:
-                    p01 = Normal(0., 1.)
-                    s_aux_losss[i] += kl_divergence(q, p01).mean()
                     s_abss_p[i] += p.mean.abs().mean()
                     s_stds_p[i] += p.stddev.mean()
                     s_abss_q[i] += q.mean.abs().mean()
@@ -194,14 +206,14 @@ class SSM(Base):
             return _x_p, _x_q
         else:
             for i in range(self.num_states):
-                if i not in self.static_hierarchy:
+                if i not in self.args.static_hierarchy:
                     loss += s_losss[i] + x_losss_q[i]
                     if self.args.beta_x_p:
                         loss += self.args.beta_x_p * x_losss_p[i]
-                    # if self.args.beta_s01:
-                    # loss += self.args.beta_s01 * s_aux_losss[i]
-            x_loss_p = x_losss_p[-1]
-            x_loss_q = x_losss_q[-1]
+                    if self.args.beta_s01:
+                        loss += self.args.beta_s01 * s01_losss[i]
+                    if self.args.posterior_s_0:
+                        loss += s_0_s_loss + s_0_x_loss
 
             _locals = locals()
             info = flatten_dict({key:_locals[key] for key in keys})
@@ -214,15 +226,33 @@ class SSM(Base):
                    for s_dim in self.s_dims]
         s_ts = []
         for i in range(self.num_states):
-            h_t = self.encoders[i](x_0)
-            s_prev = s_prevs[i]
-            a_list = [torch.zeros(_B, d).to(self.device)
-                      for d in [self.a_dim] + self.s_dims[i-1:i]]
-            with torch.no_grad():
+            if self.args.posterior_s_0:
+                logger.debug("posterior_s_0 sample")
+                with torch.no_grad():  # TODO: no_grad or not !!!!!
+                    h_t = self.encoders[i](x_0)
+                q = Normal(*self.posterior_s_0s[i](h_t))  ## grad here!
+                s_t_q = q.rsample()
+                s_0_s_loss = torch.sum(kl_divergence(q, Normal(0., 1.)), dim=[1]).mean()
+                with torch.no_grad():
+                    decoder_dist_q = Normal(*self.decoders[i](s_t_q))
+                s_0_x_loss = - torch.sum(decoder_dist_q.log_prob(x_0),
+                                          dim=[1,2,3]).mean()
+            else:
+                # with torch.no_grad():  # TODO: no_grad or not !!!!!
+                h_t = self.encoders[i](x_0)
+                s_prev = s_prevs[i]
+                a_list = [torch.zeros(_B, d).to(self.device)
+                          for d in [self.a_dim] + self.s_dims[i-1:i]]
+                # with torch.no_grad():  # TODO: no_grad or not !!!!!
                 q = Normal(*self.posteriors[i](s_prev, h_t, a_list))
-                s_t = q.mean
-            s_ts.append(s_t)
-        return s_ts
+                s_t_q = q.mean  # rsample()
+
+            s_ts.append(s_t_q)
+
+        if self.args.posterior_s_0:
+            return s_ts, s_0_s_loss, s_0_x_loss
+        else:
+            return s_ts
 
     def sample_x_temp(self, x_0, x, a):
         with torch.no_grad():
