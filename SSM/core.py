@@ -1,3 +1,5 @@
+# https://github.com/google-research/planet/blob/master/planet/networks/conv_ha.py
+
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -87,3 +89,25 @@ class Decoder(nn.Module):
         h = F.relu(self.conv3(h))  # 30x30
         h = self.conv4(h)          # 64x64
         return h, h.new_ones(h.size())
+
+
+# Normal
+class Posterior_s_0(nn.Module):
+    def __init__(self, k, s_dim, h_dim, min_stddev=0.):
+        super(Posterior_s_0, self).__init__()
+        self.name = str(k) + "-" + self.__class__.__name__.lower()
+        self.min_stddev = min_stddev
+        self.fc1 = nn.Linear(h_dim, s_dim * 2)
+        self.fc21 = nn.Linear(s_dim * 2, s_dim)
+        self.fc22 = nn.Linear(s_dim * 2, s_dim)
+
+    def forward(self, h_t):
+        # h = torch.cat([s_prev, h_t] + a_list, 1)
+        h = F.relu(self.fc1(h_t))
+        h1 = self.fc21(h)
+        h2 = self.fc22(h)
+        logger.debug("q_s_0 fc21: {:12.6f} ".format(torch.max(torch.abs(h1.data)).item()))
+        logger.debug("q_s_0 fc22: {:12.6f} ".format(torch.max(torch.abs(h2.data)).item()))
+        loc = h1
+        scale = F.softplus(h2) + self.min_stddev
+        return loc, scale
