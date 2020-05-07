@@ -172,7 +172,7 @@ class SSM(Base):
 
                 q = Normal(*self.posteriors[i](s_prev, h_t, a_list))
                 p = Normal(*self.priors[i](s_prev, a_list))
-                s_losss[i] = torch.sum(kl_divergence(q, p), dim=[1]).mean()
+                s_losss[i] += torch.sum(kl_divergence(q, p), dim=[1]).mean()
                 s_t_p = p.mean if prior_sample else p.rsample()
                 s_t_q = q.rsample()
                 s_t = s_t_p if prior_sample else s_t_q
