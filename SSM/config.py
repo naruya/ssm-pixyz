@@ -18,7 +18,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument('--res_transition', action='store_true')
     parser.add_argument('--beta_x_p', type=float, default=None)
     parser.add_argument('--beta_s01', type=float, default=None)
-    parser.add_argument('--min_stddev', type=float, default=1e-5)
+    parser.add_argument('--min_stddev', type=float, default=0.0)
     parser.add_argument('--posterior_s_0', action='store_true')
 
     parser.add_argument("--lr", type=float, default=1e-3)
