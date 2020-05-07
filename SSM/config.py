@@ -22,7 +22,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument('--posterior_s_0', action='store_true')
 
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--B", type=int, default=256)
+    parser.add_argument("--B", type=int, default=32)
     parser.add_argument("--T", type=int, default=10)
     parser.add_argument("--s_dims", type=int, nargs="+", default=[])
     parser.add_argument("--h_dim", type=int, default=1024)
