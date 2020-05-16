@@ -35,13 +35,13 @@ def get_args(jupyter=False, args=None):
             s_dim += "-" + str(d)
 
     cmd = "git rev-parse --short HEAD"
-    ghash = subprocess.check_output(cmd.split()).strip().decode('utf-8')
-
+    args.ghash = subprocess.check_output(cmd.split()).strip().decode('utf-8')
+    args.timestamp = datetime.now().strftime("%b%d_%H-%M-%S")
     log_dir = os.path.join(
         args.runs_dir,
-        datetime.now().strftime("%b%d_%H-%M-%S")
+        args.timestamp
         + "_" + args.model + "_" + s_dim
-        + "_" + ghash
+        + "_" + args.ghash
     )
 
     if args.comment:

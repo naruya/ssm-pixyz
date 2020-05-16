@@ -11,6 +11,15 @@ TRAIN_INTERVAL = 1352  # 43264 / 32
 TEST_INTERVAL = 8  # 256 / 32
 
 
+import requests
+import json
+def slack(text):
+    # webhook_url: "https://hooks.slack.com/services/foo/bar/foobar"
+    with open(".slack.txt") as f:
+        webhook_url = f.read()
+    requests.post(webhook_url, data = json.dumps({"text": text}))
+
+
 def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
@@ -46,9 +55,13 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     if writer:
         for k, v in summ.items():
             v = v / loader.N
+            summ[k] = v
             writer.add_scalar("epoch/" + prefix + k, v, epoch)
         video = model.sample_x(feed_dict)
         writer.add_video("epoch/" + prefix + "video", video, epoch)
+
+    logger.info("({}) Epoch: {} {}".format(prefix, epoch, summ))
+    return summ
 
 
 if __name__ == "__main__":
@@ -61,6 +74,18 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = True
 
     print(args.log_dir)
+
+    assert args.B == 32, "check INERVALS!"
+    import os
+    import sys
+    import logzero
+    from logzero import logger
+    logzero.loglevel(20)
+    logzero.logfile(os.path.join("logzero", args.timestamp + ".txt"), loglevel=20)
+    logger.info("ghash: " + args.ghash)
+    logger.info("command: " + str(sys.argv))
+    logger.info(args)
+
 
     if args.comment == "debug":
         writer = None
@@ -90,6 +115,8 @@ if __name__ == "__main__":
 
     for epoch in range(1, args.epochs + 1):
         print(epoch)
-        data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
-        data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
-        save_model(model)
+        _summ = data_loop(epoch, train_loader, model, args.T, device, writer, train=True)
+        summ  = data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
+        if epoch % 10 == 0:
+            save_model(model)
+            slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
