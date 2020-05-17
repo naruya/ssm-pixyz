@@ -15,7 +15,7 @@ class Prior(Normal):
     def forward(self, s_prev, a_list):
         h = torch.cat([s_prev] + a_list, 1)
         h = F.relu(self.fc1(h))
-        return {"loc": self.fc21(h),
+        return {"loc": 0.1 * self.fc21(h) + s_prev,
                 "scale": F.softplus(self.fc22(h)) + self.min_stddev}
 
 
