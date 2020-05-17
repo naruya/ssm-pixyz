@@ -23,6 +23,8 @@ def slack(text):
 def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
+    mean = torch.tensor([-3.5140e-05,  2.8279e-05,  4.9905e-01,  2.4916e-01], device=device)
+    std = torch.tensor([0.0404, 0.0404, 1.1170, 0.8273], device=device)
 
     summ = dict(zip(model.keys, [0.] * len(model.keys)))
 
@@ -30,7 +32,9 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         x, a, itr = batch
         _B = x.size(0)
         x = x.to(device).transpose(0, 1)  # T,B,3,28,28
+        x = x.float() / 255.
         a = a.to(device).transpose(0, 1)  # T,B,1
+        a = a.sub_(mean).div_(std)
 
         feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
         if train:

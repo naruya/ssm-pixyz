@@ -32,12 +32,7 @@ class PushDataLoader:
         self.itr = 0
 
     def func(self, data):
-        x = (
-            tf.dtypes.cast(
-                tf.transpose(data["image_aux1"], [0, 1, 4, 2, 3]), tf.float32
-            )
-            / 255.0
-        )
+        x = tf.transpose(data["image_aux1"], [0, 1, 4, 2, 3])
         a = data["action"]
         _s = np.random.randint(30 - self.T + 1)
         x = x[:, _s : _s + self.T]

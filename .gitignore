@@ -3,6 +3,7 @@ runs*/
 model/
 .nfs*
 .slack.txt
+logzero/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
