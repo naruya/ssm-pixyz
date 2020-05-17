@@ -243,8 +243,9 @@ def _train(model, feed_dict, epoch):
     model.train()
     model.optimizer.zero_grad()
     loss, omake_dict = model.forward(feed_dict, True, epoch=epoch)
-    clip_grad_norm_(model.distributions.parameters(), 1000)
     loss.backward()
+    # for checkking total_norm
+    total_norm = clip_grad_norm_(model.distributions.parameters(), 1e+8)
     model.optimizer.step()
     return loss, omake_dict
 
