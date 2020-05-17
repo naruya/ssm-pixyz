@@ -29,9 +29,12 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     summ = dict(zip(model.keys, [0.] * len(model.keys)))
 
     for batch in tqdm(loader):
-        x, a, itr = batch
-        _B = x.size(0)
-        x = x.to(device).transpose(0, 1)  # T,B,3,28,28
+        x_0, x, a, itr = batch
+        _B = x_0.size(0)
+
+        x_0 = x_0.to(device)  # B,3,28,28
+        x_0 = x_0.float() / 255.
+        x = x.to(device).transpose(0, 1)  # T,B,3,64,64
         x = x.float() / 255.
         a = a.to(device).transpose(0, 1)  # T,B,1
         a = a.sub_(mean).div_(std)
