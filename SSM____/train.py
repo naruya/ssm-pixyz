@@ -126,4 +126,4 @@ if __name__ == "__main__":
         summ  = data_loop(epoch, test_loader, model, args.T, device, writer, train=False)
         if epoch % 10 == 0:
             save_model(model)
-            slack("Epoch: {} {} {}".format(epoch, str(sys.argv), str(summ)))
+            slack("{} Epoch: {} {} {}".format(args.ghash, epoch, str(sys.argv), str(summ)))
