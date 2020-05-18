@@ -38,7 +38,7 @@ class Posterior(Normal):
 
 
 class Encoder(Deterministic):
-    def __init__(self, size=64, num_filters=64, max_filters=1024):
+    def __init__(self, size=64, num_filters=64, max_filters=256):
         super(Encoder, self).__init__(cond_var=["x"], var=["h"])
 
         # make sure that the max_filters are divisible by 2
@@ -107,7 +107,7 @@ class Encoder(Deterministic):
 
 
 class Decoder(Normal):
-    def __init__(self, s_dim, size=64, final_channels=64, max_channels=1024):
+    def __init__(self, s_dim, size=64, final_channels=64, max_channels=256):
         super(Decoder, self).__init__(cond_var=["s"], var=["x"])
 
         # some peculiar assertions
@@ -242,5 +242,6 @@ def actvn(x):
     :param x: input tensor
     :return: activation applied tensor
     """
-    out = F.leaky_relu(x, 2e-1)
+    # out = F.leaky_relu(x, 2e-1)
+    out = F.relu(x)
     return out
