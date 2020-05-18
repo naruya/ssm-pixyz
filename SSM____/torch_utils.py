@@ -8,10 +8,12 @@ def init_weights(model):
     for m in model.modules():
         if isinstance(m, nn.Linear):
             nn.init.xavier_normal_(m.weight)
-            nn.init.normal_(m.bias)
+            if m.bias is not None:
+                nn.init.normal_(m.bias)
         elif isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
             nn.init.xavier_normal_(m.weight)
-            nn.init.constant_(m.bias, 0)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
         elif isinstance(m, (nn.RNN, nn.RNNCell, nn.LSTM, nn.LSTMCell, nn.GRU, nn.GRUCell)):
             for param in m.parameters():
                 if len(param.shape) >= 2:
@@ -20,7 +22,8 @@ def init_weights(model):
                     nn.init.normal_(param.data)
         elif isinstance(m, (nn.LayerNorm, nn.BatchNorm1d, nn.BatchNorm2d)):
             nn.init.constant_(m.weight, 1)
-            nn.init.constant_(m.bias, 0)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
         else:
             print("  ", type(m))
             continue
