@@ -148,7 +148,8 @@ class SSM(Base):
             self.s_loss_clss.append(KullbackLeibler(self.posteriors[-1], self.priors[-1]))
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
             self.keys.append("s_loss[{}]".format(i))
-            self.keys.append("x_loss[{}]".format(i))
+            self.keys.append("q_x_loss[{}]".format(i))
+            self.keys.append("p_x_loss[{}]".format(i))
             self.keys.append("beta[{}]".format(i))
 
         distributions = self.priors + self.posteriors + self.encoders + self.decoders
@@ -159,7 +160,8 @@ class SSM(Base):
     def forward(self, feed_dict, train, epoch=None, sample=False):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_losss = [0.] * self.num_states
-        x_losss = [0.] * self.num_states
+        q_x_losss = [0.] * self.num_states
+        p_x_losss = [0.] * self.num_states
         s_aux_losss = [0.] * self.num_states
         s_abss = [0.] * self.num_states
         s_stds = [0.] * self.num_states
@@ -174,16 +176,19 @@ class SSM(Base):
 
             for i in range(self.num_states):
                 h_t.append(self.encoders[i].sample({"x": x_t}, return_all=False)["h"])
-                feed_dict = {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t}
-                s_losss[i] += self.s_loss_clss[i].eval(feed_dict).mean()
-                if train:
-                    s_t.append(self.posteriors[i].dist.rsample())
-                else:
-                    s_t.append(self.priors[i].dist.mean)
-                feed_dict = {"s": s_t[-1], "x": x_t}
-                x_losss[i] += - self.x_loss_clss[i].eval(feed_dict).mean()
+                s_losss[i] += self.s_loss_clss[i].eval(
+                    {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t}).mean()
+                s_t_q_i = self.posteriors[i].dist.rsample()
+                s_t_p_i = self.priors[i].dist.mean
+                q_x_losss[i] += - self.x_loss_clss[i].eval(
+                    {"s": s_t_q_i, "x": x_t}).mean()
+                p_x_losss[i] += - self.x_loss_clss[i].eval(
+                    {"s": s_t_p_i, "x": x_t}).mean()
+                s_t_i = s_t_q_i if train else s_t_p_i
+                s_t.append(s_t_i)
 
-            _x.append(self.decoders[-1].dist.mean)
+            if sample:  # use last hierachical state
+                _x.append(self.decoders[-1].sample_mean({"s": s_t_i}))
             s_prevs = s_t
 
         if sample:
@@ -197,12 +202,14 @@ class SSM(Base):
             betas.append(1.)  # last
 
             for i in range(self.num_states):
-                loss += s_losss[i] + betas[i] * x_losss[i] + self.gamma * s_aux_losss[i]
+                loss += s_losss[i] + q_x_losss[i] + p_x_losss[i] \
+                        + self.gamma * s_aux_losss[i]
 
-            return_dict = {"loss": loss.item(), "x_loss": x_losss[-1].item()}
+            return_dict = {"loss": loss.item(), "x_loss": p_x_losss[-1].item()}
             for i in range(self.num_states):
                 return_dict.update({"s_loss[{}]".format(i): s_losss[i].item()})
-                return_dict.update({"x_loss[{}]".format(i): x_losss[i].item()})
+                return_dict.update({"q_x_loss[{}]".format(i): q_x_losss[i].item()})
+                return_dict.update({"p_x_loss[{}]".format(i): p_x_losss[i].item()})
                 return_dict.update({"beta[{}]".format(i): betas[i]})
 
             return loss, return_dict
