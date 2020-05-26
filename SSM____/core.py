@@ -18,30 +18,40 @@ class Prior(Normal):
         self.fc_loc11 = nn.Linear(s_dim + sum(a_dims), DIM)
         self.fc_loc12 = nn.Linear(DIM, s_dim)
 
-        self.fc_loc21 = nn.Linear(s_dim * 3 + sum(a_dims), DIM)
+        self.fc_loc21 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
         self.fc_loc22 = nn.Linear(DIM, s_dim)
 
-        self.fc_loc31 = nn.Linear(s_dim * 3 + sum(a_dims), DIM)
+        self.fc_loc31 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
         self.fc_loc32 = nn.Linear(DIM, s_dim)
 
-        self.fc_scale11 = nn.Linear(s_dim * 3 + sum(a_dims), DIM)
+        self.fc_loc41 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
+        self.fc_loc42 = nn.Linear(DIM, s_dim)
+
+        self.fc_scale11 = nn.Linear(DIM * 4, DIM)
         self.fc_scale12 = nn.Linear(DIM, s_dim)
 
     def forward_shared(self, s_prev, a_list):
         # 全部 s_t = s_t + foo(s_prev, a) だと、長期ステップで死ぬ
         # 全部 s_t = foo(s_prev, a) だと、でかいs_dimで死ぬ
         h = torch.cat([s_prev] + a_list, 1)
-        s_t = self.fc_loc12(F.relu(self.fc_loc11(h)))
+        h1 = F.relu(self.fc_loc11(h))
+        s1 = self.fc_loc12(h1)
 
-        h = torch.cat([s_t, s_prev, s_t - s_prev] + a_list, 1)
-        s_t = s_t + 0.1 * self.fc_loc22(F.relu(self.fc_loc21(h)))
+        h = torch.cat([s1, s1 - s_prev] + a_list, 1)
+        h2 = F.relu(self.fc_loc21(h))
+        s2 = s1 + 0.1 * self.fc_loc22(h2)
 
-        h = torch.cat([s_t, s_prev, s_t - s_prev] + a_list, 1)
-        s_t = s_t + 0.1 * self.fc_loc32(F.relu(self.fc_loc31(h)))
+        h = torch.cat([s2, s2 - s1] + a_list, 1)
+        h3 = F.relu(self.fc_loc31(h))
+        s3 = s2 + 0.1 * self.fc_loc32(h3)
 
-        loc = s_t
+        h = torch.cat([s3, s3 - s2] + a_list, 1)
+        h4 = F.relu(self.fc_loc41(h))
+        s4 = s3 + 0.1 * self.fc_loc42(h4)
 
-        h = torch.cat([s_t, s_prev, s_t - s_prev] + a_list, 1)
+        loc = s4
+
+        h = torch.cat([h1, h2, h3, h4], 1)
         scale = self.fc_scale12(F.relu(self.fc_scale11(h)))
 
         return loc, scale
