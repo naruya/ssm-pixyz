@@ -64,8 +64,11 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
             v = v / loader.N
             summ[k] = v
             writer.add_scalar("epoch/" + prefix + k, v, epoch)
-        video = model.sample_x(feed_dict)
-        writer.add_video("epoch/" + prefix + "video", video, epoch)
+        if epoch % 10 == 1:
+            video = model.sample_x(feed_dict)
+            writer.add_video("epoch/" + prefix + "x", video, epoch)
+            video = model.sample_dx(feed_dict)
+            writer.add_video("epoch/" + prefix + "dx", video, epoch)
 
     logger.info("({}) Epoch: {} {}".format(prefix, epoch, summ))
     return summ

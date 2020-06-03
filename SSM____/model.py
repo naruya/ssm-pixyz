@@ -24,6 +24,9 @@ class Base(nn.Module):
     def sample_x(self, feed_dict):
         return _sample_x(self, feed_dict)
 
+    def sample_dx(self, feed_dict):
+        return _sample_dx(self, feed_dict)
+
     def train_(self, feed_dict, epoch):
         return _train(self, feed_dict, epoch)
 
@@ -149,8 +152,10 @@ class SSM(Base):
             self.x_loss_clss.append(LogProb(self.decoders[-1]))
             self.keys.append("s_loss[{}]".format(i))
             self.keys.append("s_aux_loss[{}]".format(i))
-            self.keys.append("q_x_loss[{}]".format(i))
-            self.keys.append("p_x_loss[{}]".format(i))
+            self.keys.append("xq_loss[{}]".format(i))
+            self.keys.append("xp_loss[{}]".format(i))
+            self.keys.append("dxq_loss[{}]".format(i))
+            self.keys.append("dxp_loss[{}]".format(i))
             self.keys.append("beta[{}]".format(i))
 
         distributions = self.priors + self.posteriors + self.encoders + self.decoders
@@ -160,16 +165,22 @@ class SSM(Base):
 
         self.prior01 = Normal(torch.tensor(0.), scale=torch.tensor(1.))
 
-    def forward(self, feed_dict, train, epoch=None, sample=False):
+    def forward(self, feed_dict, train, epoch=None, return_x=False, return_dx=False):
         x0, x, a = feed_dict["x0"], feed_dict["x"], feed_dict["a"]
         s_losss = [0.] * self.num_states
-        q_x_losss = [0.] * self.num_states
-        p_x_losss = [0.] * self.num_states
+        xq_losss = [0.] * self.num_states
+        xp_losss = [0.] * self.num_states
+        dxq_losss = [0.] * self.num_states
+        dxp_losss = [0.] * self.num_states
         s_aux_losss = [0.] * self.num_states
         s_abss = [0.] * self.num_states
         s_stds = [0.] * self.num_states
         _T, _B = x.size(0), x.size(1)
-        _x = []
+        _xq = []
+        _xp = []
+        dx = []
+        _dxq = []
+        _dxp = []
 
         s_prevs = self.sample_s0(x0, train)
 
@@ -179,24 +190,44 @@ class SSM(Base):
 
             for i in range(self.num_states):
                 h_t.append(self.encoders[i].sample({"x": x_t}, return_all=False)["h"])
+
+                # s loss
                 s_losss[i] += self.s_loss_clss[i].eval(
                     {"s_prev": s_prevs[i], "h": h_t[-1], "a_list": [a_t] + s_t}).mean()
                 s_aux_losss[i] += kl_divergence(self.posteriors[i].dist, self.prior01).mean()
-                s_t_q_i = self.posteriors[i].dist.rsample()
-                s_t_p_i = self.priors[i].dist.mean
-                q_x_losss[i] += - self.x_loss_clss[i].eval(
-                    {"s": s_t_q_i, "x": x_t}).mean()
-                p_x_losss[i] += - self.x_loss_clss[i].eval(
-                    {"s": s_t_p_i, "x": x_t}).mean()
-                s_t_i = s_t_q_i if train else s_t_p_i
-                s_t.append(s_t_i)
+                sq_t = self.posteriors[i].dist.rsample()
+                sp_t = self.priors[i].dist.mean
+                s_t.append(sq_t if train else sp_t)
 
-            if sample:  # use last hierachical state
-                _x.append(self.decoders[-1].sample_mean({"s": s_t_i}))
+                # x loss
+                xq_losss[i] += - self.x_loss_clss[i].eval(
+                    {"s": sq_t, "x": x_t}).mean()
+                _xq.append(self.decoders[-1].dist.mean)
+                xp_losss[i] += - self.x_loss_clss[i].eval(
+                    {"s": sp_t, "x": x_t}).mean()
+                _xp.append(self.decoders[-1].dist.mean)
+
+                # dx loss
+                if t == 0:
+                    continue
+                dx_t = x[t] - x[t-1]
+                _dxq_t = _xq[t] - _xq[t-1].clone().detach()  # very important
+                _dxp_t = _xp[t] - _xp[t-1].clone().detach()  # very important
+                dx.append(dx_t)
+                _dxq.append(_dxq_t)
+                _dxp.append(_dxp_t)
+
+                dxq_losss[i] += - torch.sum(Normal(_dxq_t, 1.).log_prob(dx_t),
+                                            dim=[1,2,3]).mean()
+                dxp_losss[i] += - torch.sum(Normal(_dxp_t, 1.).log_prob(dx_t),
+                                            dim=[1,2,3]).mean()
+
             s_prevs = s_t
 
-        if sample:
-            return _x
+        if return_x:
+            return x, _xp
+        if return_dx:
+            return dx, _dxp
         else:
             loss = 0.
 
@@ -206,15 +237,18 @@ class SSM(Base):
             betas.append(1.)  # last
 
             for i in range(self.num_states):
-                loss += s_losss[i] + q_x_losss[i] + p_x_losss[i] \
+                loss += s_losss[i] + xq_losss[i] + xp_losss[i] \
+                        + dxq_losss[i] + dxp_losss[i] \
                         + self.gamma * s_aux_losss[i]
 
-            return_dict = {"loss": loss.item(), "x_loss": p_x_losss[-1].item()}
+            return_dict = {"loss": loss.item(), "x_loss": xp_losss[-1].item()}
             for i in range(self.num_states):
                 return_dict.update({"s_loss[{}]".format(i): s_losss[i].item()})
                 return_dict.update({"s_aux_loss[{}]".format(i): s_aux_losss[i].item()})
-                return_dict.update({"q_x_loss[{}]".format(i): q_x_losss[i].item()})
-                return_dict.update({"p_x_loss[{}]".format(i): p_x_losss[i].item()})
+                return_dict.update({"xq_loss[{}]".format(i): xq_losss[i].item()})
+                return_dict.update({"xp_loss[{}]".format(i): xp_losss[i].item()})
+                return_dict.update({"dxq_loss[{}]".format(i): dxq_losss[i].item()})
+                return_dict.update({"dxp_loss[{}]".format(i): dxp_losss[i].item()})
                 return_dict.update({"beta[{}]".format(i): betas[i]})
 
             return loss, return_dict
@@ -239,10 +273,24 @@ def _sample_s0(model, x0, train):
 
 def _sample_x(model, feed_dict):
     with torch.no_grad():
-        _x = model.forward(feed_dict, False, sample=True)
-    x = feed_dict["x"].transpose(0, 1)  # BxT
+        x, _x = model.forward(feed_dict, False, return_x=True)
+    x = x.transpose(0, 1)  # BxT
     _x = torch.stack(_x).transpose(0, 1)  # BxT
-    _x = torch.clamp(_x, 0, 1)
+    video = []
+    for i in range(4):
+        video.append(x[i*8:i*8+8])
+        video.append(_x[i*8:i*8+8])
+    video = torch.cat(video)  # B*2xT
+    return video
+
+
+def _sample_dx(model, feed_dict):
+    with torch.no_grad():
+        x, _x = model.forward(feed_dict, False, return_dx=True)
+    x = torch.stack(x).transpose(0, 1)  # BxT
+    x = torch.clamp(x, 0, 1)
+    _x = torch.stack(_x).transpose(0, 1)  # BxT
+    _x = (_x + 1.) / 2.  # (-1,1) -> (0,1)
     video = []
     for i in range(4):
         video.append(x[i*8:i*8+8])
