@@ -276,6 +276,7 @@ def _sample_x(model, feed_dict):
         x, _x = model.forward(feed_dict, False, return_x=True)
     x = x.transpose(0, 1)  # BxT
     _x = torch.stack(_x).transpose(0, 1)  # BxT
+    _x = torch.clamp(_x, 0, 1)
     video = []
     for i in range(4):
         video.append(x[i*8:i*8+8])
@@ -288,6 +289,7 @@ def _sample_dx(model, feed_dict):
     with torch.no_grad():
         x, _x = model.forward(feed_dict, False, return_dx=True)
     x = torch.stack(x).transpose(0, 1)  # BxT
+    x = (x + 1.) / 2.  # (-1,1) -> (0,1)
     _x = torch.stack(_x).transpose(0, 1)  # BxT
     _x = (_x + 1.) / 2.  # (-1,1) -> (0,1)
     video = []
