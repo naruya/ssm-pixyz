@@ -287,3 +287,52 @@ def actvn(x):
     # out = F.leaky_relu(x, 2e-1)
     out = F.relu(x)
     return out
+
+
+class Discriminator(nn.Module):
+
+    def __init__(self, device):
+        super(Discriminator, self).__init__()
+        self.device = device
+
+        # 3x64x64
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1), # -> 64x32x32
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1), # -> 128x16x16
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+
+            nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1), # -> 128x8x8
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+        )
+
+        self.fc = nn.Sequential(
+            nn.Linear(128 * 8 * 8, 1024),
+            nn.BatchNorm1d(1024),
+            nn.LeakyReLU(0.2),
+
+            nn.Linear(1024, 1),
+            nn.Sigmoid(),
+        )
+
+        # -------------------------------- VDB
+        self.conv_mean = nn.Conv2d(128, 128, kernel_size=1, stride=1, padding=0) # -> 128x8x8
+        self.conv_logvar = nn.Conv2d(128, 128, kernel_size=1, stride=1, padding=0) # -> 128x8x8
+        # --------------------------------
+
+    def forward(self, input):
+        x = self.conv(input)
+
+        # -------------------------------- VDB
+        mean = self.conv_mean(x).view(-1, 128 * 8 * 8)
+        logvar = self.conv_logvar(x).view(-1, 128 * 8 * 8)
+        noise = torch.randn(mean.size(), device=self.device)
+        z = (0.5 * logvar).exp() * noise + mean
+        # --------------------------------
+
+        x = self.fc(z)
+        return x, mean, logvar
