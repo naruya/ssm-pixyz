@@ -39,7 +39,7 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         a = a.to(device).transpose(0, 1)  # T,B,1
         a = a.sub_(mean).div_(std)
 
-        feed_dict = {"x0": x[0].clone(), "x": x, "a": a}
+        feed_dict = {"x0": x_0, "x": x, "a": a}
         if train:
             loss, omake_dict = model.train_(feed_dict, epoch)
         else:
