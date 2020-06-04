@@ -185,7 +185,7 @@ class SSM(Base):
         self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
         self.I_c = 0.2
-        self.beta = 1.0
+        self.beta = 0.
         self.alpha = 1e-5
         self.g_criterion = nn.BCELoss()
         self.d_criterion = self.VDB_loss
