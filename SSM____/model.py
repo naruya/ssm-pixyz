@@ -185,7 +185,7 @@ class SSM(Base):
         self.d_optimizer = optim.Adam(self.discriminator.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
         self.I_c = 0.2
-        self.beta = 0
+        self.beta = 1.0
         self.alpha = 1e-5
         self.g_criterion = nn.BCELoss()
         self.d_criterion = self.VDB_loss
@@ -379,15 +379,18 @@ def _sample_x(model, feed_dict):
 
 def _train(model, feed_dict, epoch):
     model.train()
-    model.g_optimizer.zero_grad()
-    model.d_optimizer.zero_grad()
     g_loss, d_loss, omake_dict = model.forward(feed_dict, True, epoch=epoch)
+
+    model.g_optimizer.zero_grad()
     g_loss.backward()
+    model.g_optimizer.step()
+
+    model.d_optimizer.zero_grad()
     d_loss.backward()
+    model.d_optimizer.step()
+
     # for checkking total_norm
     # total_norm = clip_grad_norm_(model.distributions.parameters(), 1e+8)
-    model.g_optimizer.step()
-    model.d_optimizer.step()
     return g_loss, omake_dict
 
 
