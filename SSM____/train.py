@@ -67,8 +67,8 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         if epoch % 10 == 1:
             video = model.sample_x(feed_dict)
             writer.add_video("epoch/" + prefix + "x", video, epoch)
-            video = model.sample_dx(feed_dict)
-            writer.add_video("epoch/" + prefix + "dx", video, epoch)
+            # video = model.sample_dx(feed_dict)
+            # writer.add_video("epoch/" + prefix + "dx", video, epoch)
 
     logger.info("({}) Epoch: {} {}".format(prefix, epoch, summ))
     return summ

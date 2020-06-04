@@ -28,8 +28,8 @@ class Base(nn.Module):
     def sample_x(self, feed_dict):
         return _sample_x(self, feed_dict)
 
-    def sample_dx(self, feed_dict):
-        return _sample_dx(self, feed_dict)
+    # def sample_dx(self, feed_dict):
+    #     return _sample_dx(self, feed_dict)
 
     def train_(self, feed_dict, epoch):
         return _train(self, feed_dict, epoch)
@@ -162,8 +162,8 @@ class SSM(Base):
             self.keys.append("xq_loss[{}]".format(i))
             self.keys.append("xp_loss[{}]".format(i))
             # dx reconst loss
-            self.keys.append("dxq_loss[{}]".format(i))
-            self.keys.append("dxp_loss[{}]".format(i))
+            # self.keys.append("dxq_loss[{}]".format(i))
+            # self.keys.append("dxp_loss[{}]".format(i))
             # GAN loss
             self.keys.append("gq_loss[{}]".format(i))
             self.keys.append("gp_loss[{}]".format(i))
@@ -206,8 +206,8 @@ class SSM(Base):
         s_losss = [0.] * self.num_states
         xq_losss = [0.] * self.num_states
         xp_losss = [0.] * self.num_states
-        dxq_losss = [0.] * self.num_states
-        dxp_losss = [0.] * self.num_states
+        # dxq_losss = [0.] * self.num_states
+        # dxp_losss = [0.] * self.num_states
         s_aux_losss = [0.] * self.num_states
         gq_losss = [0.] * self.num_states
         gp_losss = [0.] * self.num_states
@@ -217,9 +217,9 @@ class SSM(Base):
         _T, _B = x.size(0), x.size(1)
         _xq = []
         _xp = []
-        dx = []
-        _dxq = []
-        _dxp = []
+        # dx = []
+        # _dxq = []
+        # _dxp = []
         vdb_kls = []
 
         s_prevs = self.sample_s0(x0, train)
@@ -252,19 +252,19 @@ class SSM(Base):
                 _xp.append(self.decoders[-1].dist.mean)
 
                 # dx loss
-                if t == 0:
-                    continue
-                dx_t = x[t] - x[t-1]
-                _dxq_t = _xq[t] - _xq[t-1].detach()  # very important
-                _dxp_t = _xp[t] - _xp[t-1].detach()  # very important
-                dx.append(dx_t)
-                _dxq.append(_dxq_t)
-                _dxp.append(_dxp_t)
+                # if t == 0:
+                #     continue
+                # dx_t = x[t] - x[t-1]
+                # _dxq_t = _xq[t] - _xq[t-1].detach()  # very important
+                # _dxp_t = _xp[t] - _xp[t-1].detach()  # very important
+                # dx.append(dx_t)
+                # _dxq.append(_dxq_t)
+                # _dxp.append(_dxp_t)
 
-                dxq_losss[i] += - torch.sum(Normal(_dxq_t, 1.).log_prob(dx_t),
-                                            dim=[1,2,3]).mean()
-                dxp_losss[i] += - torch.sum(Normal(_dxp_t, 1.).log_prob(dx_t),
-                                            dim=[1,2,3]).mean()
+                # dxq_losss[i] += - torch.sum(Normal(_dxq_t, 1.).log_prob(dx_t),
+                #                             dim=[1,2,3]).mean()
+                # dxp_losss[i] += - torch.sum(Normal(_dxp_t, 1.).log_prob(dx_t),
+                #                             dim=[1,2,3]).mean()
 
                 # generator loss
                 y_pred, mean, logvar = self.discriminator(_xq[t])
@@ -299,17 +299,17 @@ class SSM(Base):
 
         if return_x:
             return x, _xp
-        if return_dx:
-            return dx, _dxp
+        # if return_dx:
+        #     return dx, _dxp
         else:
             g_loss = 0.
             d_loss = 0.
 
             for i in range(self.num_states):
                 g_loss += s_losss[i] + xq_losss[i] + xp_losss[i] \
-                        + dxq_losss[i] + dxp_losss[i] \
                         + gq_losss[i] + gp_losss[i] \
                         + self.gamma * s_aux_losss[i]
+                        # + dxq_losss[i] + dxp_losss[i] \
                 d_loss += dq_losss[i] + dp_losss[i]
 
             return_dict = {"loss": g_loss.item(),
@@ -321,8 +321,8 @@ class SSM(Base):
                 return_dict.update({"s_aux_loss[{}]".format(i): s_aux_losss[i].item()})
                 return_dict.update({"xq_loss[{}]".format(i): xq_losss[i].item()})
                 return_dict.update({"xp_loss[{}]".format(i): xp_losss[i].item()})
-                return_dict.update({"dxq_loss[{}]".format(i): dxq_losss[i].item()})
-                return_dict.update({"dxp_loss[{}]".format(i): dxp_losss[i].item()})
+                # return_dict.update({"dxq_loss[{}]".format(i): dxq_losss[i].item()})
+                # return_dict.update({"dxp_loss[{}]".format(i): dxp_losss[i].item()})
                 return_dict.update({"gq_loss[{}]".format(i): gq_losss[i].item()})
                 return_dict.update({"gp_loss[{}]".format(i): gp_losss[i].item()})
                 return_dict.update({"dq_loss[{}]".format(i): dq_losss[i].item()})
@@ -362,19 +362,19 @@ def _sample_x(model, feed_dict):
     return video
 
 
-def _sample_dx(model, feed_dict):
-    with torch.no_grad():
-        x, _x = model.forward(feed_dict, False, return_dx=True)
-    x = torch.stack(x).transpose(0, 1)  # BxT
-    x = (x + 1.) / 2.  # (-1,1) -> (0,1)
-    _x = torch.stack(_x).transpose(0, 1)  # BxT
-    _x = (_x + 1.) / 2.  # (-1,1) -> (0,1)
-    video = []
-    for i in range(4):
-        video.append(x[i*8:i*8+8])
-        video.append(_x[i*8:i*8+8])
-    video = torch.cat(video)  # B*2xT
-    return video
+# def _sample_dx(model, feed_dict):
+#     with torch.no_grad():
+#         x, _x = model.forward(feed_dict, False, return_dx=True)
+#     x = torch.stack(x).transpose(0, 1)  # BxT
+#     x = (x + 1.) / 2.  # (-1,1) -> (0,1)
+#     _x = torch.stack(_x).transpose(0, 1)  # BxT
+#     _x = (_x + 1.) / 2.  # (-1,1) -> (0,1)
+#     video = []
+#     for i in range(4):
+#         video.append(x[i*8:i*8+8])
+#         video.append(_x[i*8:i*8+8])
+#     video = torch.cat(video)  # B*2xT
+#     return video
 
 
 def _train(model, feed_dict, epoch):
