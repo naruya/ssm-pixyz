@@ -142,7 +142,7 @@ class SSM(Base):
         self.decoders = []
         self.s_loss_clss = []
         self.x_loss_clss = []
-        self.keys = ["loss", "x_loss", "beta"]
+        self.keys = ["loss", "x_loss", "beta", "vdb_kl"]
 
         for i in range(self.num_states):
             s_dim = self.s_dims[i]
@@ -274,7 +274,7 @@ class SSM(Base):
 
                 # discriminator loss
                 y_pred, mean, logvar = self.discriminator(x[t])
-                d_real_loss, kl_real = self.d_criterion(
+                d_real_loss, d_kl_real = self.d_criterion(
                     y_pred, y_real, mean, logvar)
 
                 y_pred, mean, logvar = self.discriminator(_xq[t].detach())
@@ -288,8 +288,8 @@ class SSM(Base):
                 dq_losss[i] += d_real_loss + dq_fake_loss
                 dp_losss[i] += d_real_loss + dp_fake_loss
 
-                vdb_kls.append(kl_real.item() + dq_kl_fake.item())
-                vdb_kls.append(kl_real.item() + dp_kl_fake.item())
+                vdb_kls.append(d_kl_real.item() + dq_kl_fake.item())
+                vdb_kls.append(d_kl_real.item() + dp_kl_fake.item())
 
             s_prevs = s_t
 
