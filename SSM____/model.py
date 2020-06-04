@@ -191,12 +191,12 @@ class SSM(Base):
         self.d_criterion = self.VDB_loss
 
 
-    def VDB_loss(self, out, label, mean, logvar):
+    def VDB_loss(self, out, label, dist):
         normal_D_loss = torch.mean(F.binary_cross_entropy(out, label))
 
-        kldiv_loss = - 0.5 * torch.mean(1 + logvar - mean.pow(2) - logvar.exp())
-        kldiv_loss = kldiv_loss.mean() - self.I_c
-        final_loss = normal_D_loss + self.beta * kldiv_loss
+        kldiv_loss = kl_divergence(dist, self.prior01).mean()
+        _kldiv_loss = kldiv_loss - self.I_c
+        final_loss = normal_D_loss + self.beta * _kldiv_loss
 
         return final_loss, kldiv_loss.detach()
 
@@ -267,23 +267,23 @@ class SSM(Base):
                 #                             dim=[1,2,3]).mean()
 
                 # generator loss
-                y_pred, mean, logvar = self.discriminator(_xq[t])
+                y_pred, dist = self.discriminator(_xq[t])
                 gq_losss[i] += self.g_criterion(y_pred, y_real)
-                y_pred, mean, logvar = self.discriminator(_xp[t])
+                y_pred, dist = self.discriminator(_xp[t])
                 gp_losss[i] += self.g_criterion(y_pred, y_real)
 
                 # discriminator loss
-                y_pred, mean, logvar = self.discriminator(x[t])
+                y_pred, dist = self.discriminator(x[t])
                 d_real_loss, d_kl_real = self.d_criterion(
-                    y_pred, y_real, mean, logvar)
+                    y_pred, y_real, dist)
 
-                y_pred, mean, logvar = self.discriminator(_xq[t].detach())
+                y_pred, dist = self.discriminator(_xq[t].detach())
                 dq_fake_loss, dq_kl_fake = self.d_criterion(
-                    y_pred, y_fake, mean, logvar)
+                    y_pred, y_fake, dist)
 
-                y_pred, mean, logvar = self.discriminator(_xp[t].detach())
+                y_pred, dist = self.discriminator(_xp[t].detach())
                 dp_fake_loss, dp_kl_fake = self.d_criterion(
-                    y_pred, y_fake, mean, logvar)
+                    y_pred, y_fake, dist)
 
                 dq_losss[i] += d_real_loss + dq_fake_loss
                 dp_losss[i] += d_real_loss + dp_fake_loss

@@ -5,6 +5,7 @@ from torch import nn
 from torch.nn import functional as F
 from pixyz.distributions import Normal, Deterministic
 import numpy as np
+from torch.distributions import Normal as NormalTorch
 
 
 DIM = 128
@@ -329,10 +330,10 @@ class Discriminator(nn.Module):
 
         # -------------------------------- VDB
         mean = self.conv_mean(x).view(-1, 128 * 8 * 8)
-        logvar = self.conv_logvar(x).view(-1, 128 * 8 * 8)
-        noise = torch.randn(mean.size(), device=self.device)
-        z = (0.5 * logvar).exp() * noise + mean
+        scale = F.softplus(self.conv_logvar(x).view(-1, 128 * 8 * 8))
+        dist = NormalTorch(mean, scale)
+        z = dist.rsample()
         # --------------------------------
 
         x = self.fc(z)
-        return x, mean, logvar
+        return x, dist
