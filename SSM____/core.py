@@ -19,13 +19,13 @@ class Prior(Normal):
         self.fc_loc11 = nn.Linear(s_dim + sum(a_dims), DIM)
         self.fc_loc12 = nn.Linear(DIM, s_dim)
 
-        self.fc_loc21 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
+        self.fc_loc21 = nn.Linear(s_dim + DIM, DIM)
         self.fc_loc22 = nn.Linear(DIM, s_dim)
 
-        self.fc_loc31 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
+        self.fc_loc31 = nn.Linear(s_dim + DIM, DIM)
         self.fc_loc32 = nn.Linear(DIM, s_dim)
 
-        self.fc_loc41 = nn.Linear(s_dim * 2 + sum(a_dims), DIM)
+        self.fc_loc41 = nn.Linear(s_dim + DIM, DIM)
         self.fc_loc42 = nn.Linear(DIM, s_dim)
 
         self.fc_scale11 = nn.Linear(DIM * 4, DIM)
@@ -38,17 +38,17 @@ class Prior(Normal):
         h1 = F.relu(self.fc_loc11(h))
         s1 = self.fc_loc12(h1)
 
-        h = torch.cat([s1, s1 - s_prev] + a_list, 1)
+        h = torch.cat([s1, h1], 1)
         h2 = F.relu(self.fc_loc21(h))
-        s2 = s1 + 0.1 * self.fc_loc22(h2)
+        s2 = s1 + self.fc_loc22(h2)
 
-        h = torch.cat([s2, s2 - s1] + a_list, 1)
+        h = torch.cat([s2, h2], 1)
         h3 = F.relu(self.fc_loc31(h))
-        s3 = s2 + 0.1 * self.fc_loc32(h3)
+        s3 = s2 + self.fc_loc32(h3)
 
-        h = torch.cat([s3, s3 - s2] + a_list, 1)
+        h = torch.cat([s3, h3], 1)
         h4 = F.relu(self.fc_loc41(h))
-        s4 = s3 + 0.1 * self.fc_loc42(h4)
+        s4 = s3 + self.fc_loc42(h4)
 
         loc = s4
 
@@ -59,7 +59,7 @@ class Prior(Normal):
 
     def forward(self, s_prev, a_list):
         loc, scale = self.forward_shared(s_prev, a_list)
-        return {"loc": loc,
+        return {"loc": torch.tanh(loc),
                 "scale": F.softplus(scale) + self.min_stddev}
 
 
@@ -76,7 +76,7 @@ class Posterior(Normal):
         loc, scale = self.prior.forward_shared(s_prev, a_list)
         h = torch.cat([loc, scale, h], 1)
         h = F.relu(self.fc1(h))
-        return {"loc": self.fc21(h),
+        return {"loc": torch.tanh(self.fc21(h)),
                 "scale": F.softplus(self.fc22(h)) + self.min_stddev}
 
 
