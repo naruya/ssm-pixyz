@@ -167,8 +167,10 @@ class SSM(Base):
             # GAN loss
             self.keys.append("gq_loss[{}]".format(i))
             self.keys.append("gp_loss[{}]".format(i))
+            self.keys.append("gn_loss[{}]".format(i))
             self.keys.append("dq_loss[{}]".format(i))
             self.keys.append("dp_loss[{}]".format(i))
+            self.keys.append("dn_loss[{}]".format(i))
 
         distributions = self.priors + self.posteriors + self.encoders + self.decoders
         self.distributions = nn.ModuleList(distributions).to(device)
@@ -211,8 +213,10 @@ class SSM(Base):
         s_aux_losss = [0.] * self.num_states
         gq_losss = [0.] * self.num_states
         gp_losss = [0.] * self.num_states
+        gn_losss = [0.] * self.num_states
         dq_losss = [0.] * self.num_states
         dp_losss = [0.] * self.num_states
+        dn_losss = [0.] * self.num_states
 
         _T, _B = x.size(0), x.size(1)
         _xq = []
@@ -267,10 +271,17 @@ class SSM(Base):
                 #                             dim=[1,2,3]).mean()
 
                 # generator loss
+                sn = (torch.rand(sq_t.shape) * 2. - 1.).to(self.device)  # -1~1
+                _xn = self.decoders[-1].sample_mean({"s": sn})
+
                 y_pred, dist = self.discriminator(_xq[t])
-                gq_losss[i] += self.g_criterion(y_pred, y_real)
+                gq_losss[i] += self.g_criterion(y_pred, y_real) / 3.
+
                 y_pred, dist = self.discriminator(_xp[t])
-                gp_losss[i] += self.g_criterion(y_pred, y_real)
+                gp_losss[i] += self.g_criterion(y_pred, y_real) / 3.
+
+                y_pred, dist = self.discriminator(_xn)
+                gn_losss[i] += self.g_criterion(y_pred, y_real) / 3.
 
                 # discriminator loss
                 y_pred, dist = self.discriminator(x[t])
@@ -285,11 +296,17 @@ class SSM(Base):
                 dp_fake_loss, dp_kl_fake = self.d_criterion(
                     y_pred, y_fake, dist)
 
-                dq_losss[i] += d_real_loss + dq_fake_loss
-                dp_losss[i] += d_real_loss + dp_fake_loss
+                y_pred, dist = self.discriminator(_xn.detach())
+                dn_fake_loss, dn_kl_fake = self.d_criterion(
+                    y_pred, y_fake, dist)
+
+                dq_losss[i] += d_real_loss / 3. + dq_fake_loss / 3.
+                dp_losss[i] += d_real_loss / 3. + dp_fake_loss / 3.
+                dn_losss[i] += d_real_loss / 3. + dn_fake_loss / 3.
 
                 vdb_kls.append(d_kl_real.item() + dq_kl_fake.item())
                 vdb_kls.append(d_kl_real.item() + dp_kl_fake.item())
+                vdb_kls.append(d_kl_real.item() + dn_kl_fake.item())
 
             s_prevs = s_t
 
@@ -307,10 +324,10 @@ class SSM(Base):
 
             for i in range(self.num_states):
                 g_loss += s_losss[i] + xq_losss[i] + xp_losss[i] \
-                        + gq_losss[i] + gp_losss[i] \
+                        + gq_losss[i] + gp_losss[i] + gn_losss[i] \
                         + self.gamma * s_aux_losss[i]
                         # + dxq_losss[i] + dxp_losss[i] \
-                d_loss += dq_losss[i] + dp_losss[i]
+                d_loss += dq_losss[i] + dp_losss[i] + dn_losss[i]
 
             return_dict = {"loss": g_loss.item(),
                            "x_loss": xp_losss[-1].item(),
@@ -325,8 +342,10 @@ class SSM(Base):
                 # return_dict.update({"dxp_loss[{}]".format(i): dxp_losss[i].item()})
                 return_dict.update({"gq_loss[{}]".format(i): gq_losss[i].item()})
                 return_dict.update({"gp_loss[{}]".format(i): gp_losss[i].item()})
+                return_dict.update({"gn_loss[{}]".format(i): gp_losss[i].item()})
                 return_dict.update({"dq_loss[{}]".format(i): dq_losss[i].item()})
                 return_dict.update({"dp_loss[{}]".format(i): dp_losss[i].item()})
+                return_dict.update({"dn_loss[{}]".format(i): dn_losss[i].item()})
 
             return g_loss, d_loss, return_dict
 
