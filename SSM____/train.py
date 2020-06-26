@@ -1,14 +1,14 @@
 from config import get_args
 from tqdm import tqdm
 from model import *
-from data_loader import PushDataLoader
+from data_loader import TowelDataLoader
 from pixyz_utils import save_model
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
 PLOT_SCALAR_INTERVAL = 169
-TRAIN_INTERVAL = 1352  # 43264 / 32
-TEST_INTERVAL = 8  # 256 / 32
+# TRAIN_INTERVAL = 1352  # 43264 / 32
+# TEST_INTERVAL = 8  # 256 / 32
 
 
 import requests
@@ -23,19 +23,23 @@ def slack(text):
 def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     name = model.__class__.__name__
     prefix = "train_" if train else "test_"
-    mean = torch.tensor([-3.5140e-05,  2.8279e-05,  4.9905e-01,  2.4916e-01], device=device)
-    std = torch.tensor([0.0404, 0.0404, 1.1170, 0.8273], device=device)
+    # push
+    # mean = torch.tensor([-3.5140e-05,  2.8279e-05,  4.9905e-01,  2.4916e-01], device=device)
+    # std = torch.tensor([0.0404, 0.0404, 1.1170, 0.8273], device=device)
+    # towel
+    mean = torch.tensor([0.00025036 0.00028587 0.03307046 0.0008472], device=device)
+    std = torch.tensor([0.10005278 0.10012137 0.27526397 0.24198195], device=device)
 
     summ = dict(zip(model.keys, [0.] * len(model.keys)))
+    N = 0
 
     for batch in tqdm(loader):
-        x_0, x, a, itr = batch
-        _B = x_0.size(0)
+        x_0, x, a = batch
 
-        x_0 = x_0.to(device)  # B,3,28,28
-        x_0 = x_0.float() / 255.
-        x = x.to(device).transpose(0, 1)  # T,B,3,64,64
-        x = x.float() / 255.
+        x_0 = x_0.to(device).float() / 255.  # B,3,28,28
+        _B = x_0.size(0)
+        N += _B
+        x = x.to(device).float().transpose(0, 1) / 255. # T,B,3,64,64
         a = a.to(device).transpose(0, 1)  # T,B,1
         a = a.sub_(mean).div_(std)
 
@@ -47,24 +51,24 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
         for k in summ.keys():
             v = omake_dict[k]
             summ[k] += v * _B
-            if train and itr % PLOT_SCALAR_INTERVAL == 0:
-                print(k, v)
-                if writer:
-                    writer.add_scalar("itr/train_" + k, v, itr)
+            # if train and itr % PLOT_SCALAR_INTERVAL == 0:
+            #     print(k, v)
+            #     if writer:
+            #         writer.add_scalar("itr/train_" + k, v, itr)
 
-        if train and itr % TRAIN_INTERVAL == 0:
-            break
-        if not train and itr % TEST_INTERVAL == 0:
-            break
+        # if train and itr % TRAIN_INTERVAL == 0:
+        #     break
+        # if not train and itr % TEST_INTERVAL == 0:
+        #     break
 
-    print("loss:", summ["loss"] / loader.N)
+    print("loss:", summ["loss"] / N)
 
     if writer:
         for k, v in summ.items():
-            v = v / loader.N
+            v = v / N
             summ[k] = v
             writer.add_scalar("epoch/" + prefix + k, v, epoch)
-        if epoch % 10 == 1:
+        if epoch % 10 == 0:
             video = model.sample_x(feed_dict)
             writer.add_video("epoch/" + prefix + "x", video, epoch)
             # video = model.sample_dx(feed_dict)
@@ -98,32 +102,15 @@ if __name__ == "__main__":
     logger.info("command: " + str(sys.argv))
     logger.info(args)
 
-
     if args.comment == "debug":
         writer = None
     else:
         writer = SummaryWriter(log_dir=args.log_dir)
 
-    if args.model == "SSM11":
-        model = SSM(args, device, query=["a"], extra=None)
-    elif args.model == "SSM12":
-        model = SSM(args, device, query=["a"], extra="ensemble")
-    elif args.model == "SSM13":
-        model = SSM(args, device, query=["s"], extra=None)
-    elif args.model == "SSM14":
-        model = SSM(args, device, query=["s"], extra="residual")
-    elif args.model == "SSM15":
-        model = SSM(args, device, query=["a", "s"], extra=None)
-    elif args.model == "SSM16":
-        model = SSM(args, device)
-    elif args.model == "SimpleSSM":
-        args.s_dim = args.s_dim[0]
-        model = SimpleSSM(args, device)
-    else:
-        raise NotImplementedError
+    model = SSM(args, device)
 
-    train_loader = PushDataLoader("train", args)
-    test_loader = PushDataLoader("test", args)
+    train_loader = TowelDataLoader("train", args)
+    test_loader = TowelDataLoader("test", args)
 
     for epoch in range(1, args.epochs + 1):
         print(epoch)
