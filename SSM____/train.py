@@ -90,6 +90,8 @@ if __name__ == "__main__":
     import sys
     import logzero
     from logzero import logger
+    assert os.path.isfile(".slack.txt"), "error"
+    os.makedirs("./logzero", exist_ok=True)
     logzero.loglevel(20)
     logzero.logfile(os.path.join("logzero", args.timestamp + ".txt"), loglevel=20)
     logger.info("ghash: " + args.ghash)
