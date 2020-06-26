@@ -207,7 +207,6 @@ class Decoder(Normal):
 
         # apply the final image converter
         out = self.conv_img(actvn(out))
-        out = torch.tanh(out)  # our pixel values are in range [-1, 1]
 
         return {"loc": out, "scale": out.new_ones(out.size())}
 
