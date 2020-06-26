@@ -27,8 +27,8 @@ def data_loop(epoch, loader, model, T, device, writer=None, train=True):
     # mean = torch.tensor([-3.5140e-05,  2.8279e-05,  4.9905e-01,  2.4916e-01], device=device)
     # std = torch.tensor([0.0404, 0.0404, 1.1170, 0.8273], device=device)
     # towel
-    mean = torch.tensor([0.00025036 0.00028587 0.03307046 0.0008472], device=device)
-    std = torch.tensor([0.10005278 0.10012137 0.27526397 0.24198195], device=device)
+    mean = torch.tensor([0.00025036, 0.00028587, 0.03307046, 0.0008472], device=device)
+    std = torch.tensor([0.10005278, 0.10012137, 0.27526397, 0.24198195], device=device)
 
     summ = dict(zip(model.keys, [0.] * len(model.keys)))
     N = 0
