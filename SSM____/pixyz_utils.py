@@ -9,9 +9,10 @@ def save_model(model):
     os.makedirs(path, exist_ok=True)
     for i, dist in enumerate(model.distributions):
         torch.save(dist.state_dict(), os.path.join(path, "dist" + str(i) + ".pt"))
-    torch.save(model.discriminator.state_dict(), os.path.join(path, "discriminator.pt"))
     torch.save(model.g_optimizer.state_dict(), os.path.join(path, "g_opt.pt"))
-    torch.save(model.d_optimizer.state_dict(), os.path.join(path, "d_opt.pt"))
+    if model.gan:
+        torch.save(model.d_optimizer.state_dict(), os.path.join(path, "d_opt.pt"))
+        torch.save(model.discriminator.state_dict(), os.path.join(path, "discriminator.pt"))
 
 
 def load_model(model, time):
@@ -19,5 +20,6 @@ def load_model(model, time):
     for i, dist in enumerate(model.distributions):
         dist.load_state_dict(torch.load(os.path.join(path, "dist" + str(i) + ".pt")))
     model.g_optimizer.load_state_dict(torch.load(os.path.join(path, "g_opt.pt")))
-    model.d_optimizer.load_state_dict(torch.load(os.path.join(path, "d_opt.pt")))
-    model.discriminator.load_state_dict(torch.load(os.path.join(path, "discriminator.pt")))
+    if model.gan:
+        model.d_optimizer.load_state_dict(torch.load(os.path.join(path, "d_opt.pt")))
+        model.discriminator.load_state_dict(torch.load(os.path.join(path, "discriminator.pt")))
