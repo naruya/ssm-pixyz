@@ -7,7 +7,6 @@ import subprocess
 def get_args(jupyter=False, args=None):
     parser = argparse.ArgumentParser(description="description")
     parser.add_argument("--device_ids", type=int, nargs="+", default=[0])
-    parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--comment", type=str, default=None)
     parser.add_argument("--B", type=int, default=32)
     parser.add_argument("--T", type=int, default=10)
@@ -18,7 +17,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument('--min_stddev', type=float, default=0.)
     parser.add_argument('--gan', action='store_true')
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
+    parser.add_argument("--data_dir", type=str, default="/root/data/")
     parser.add_argument("--runs_dir", type=str, default="../runs/")
     parser.add_argument("--seed", type=int, default=0)
 
@@ -41,7 +40,7 @@ def get_args(jupyter=False, args=None):
     log_dir = os.path.join(
         args.runs_dir,
         args.timestamp
-        + "_" + args.model + "_" + s_dim
+        + "_" + s_dim
         + "_" + args.ghash
     )
 
