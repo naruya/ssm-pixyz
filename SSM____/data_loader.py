@@ -1,54 +1,55 @@
-import math
+import os
+import random
+import cv2
+import glob
 import numpy as np
-import torch
-import tensorflow as tf
-import tensorflow_datasets as tfds
-
-tf.compat.v1.enable_eager_execution()
+from torch.utils.data import Dataset, DataLoader
 
 
-class PushDataLoader:
-    def __init__(self, split, args):
+# faster than `vread` in `skvideo.io`
+def vread(path, T=20):
+    cap = cv2.VideoCapture(path)
+    gif = [cap.read()[1][...,::-1] for i in range(T)]
+    gif = np.array(gif)
+    cap.release()
+    return gif
+
+
+class TowelDataset(Dataset):
+    def __init__(self, data_dir, mode, T):
+        self.actions = np.load(os.path.join(
+            data_dir, 'towel_pick_30k', 'npy', mode + '.npy'))
+        print("mean:", self.actions.mean(axis=(0,1)))
+        print("std:", self.actions.std(axis=(0,1)))
+        self.image_paths = sorted(glob.glob(os.path.join(
+            data_dir, 'towel_pick_30k', 'gif', mode, '*')))
+        self.T = T
+
+        print(len(self.image_paths), self.actions.shape)
+
+    def __len__(self):
+        return len(self.actions)
+
+    def __getitem__(self, idx):
+        a = self.actions[idx]
+        x = vread(self.image_paths[idx])
+        x = np.transpose(x, [0,3,1,2])
+
+        _s = np.random.randint(20 - (self.T+1) + 1)
+        x_0 = x[_s]
+        x = x[_s+1:_s+1+self.T]
+        a = a[_s+1:_s+1+self.T]
+        return x_0, x, a
+
+
+class TowelDataLoader(DataLoader):
+    def __init__(self, mode, args):
         SEED = args.seed
         np.random.seed(SEED)
 
-        self.T = args.T
-        self.B = args.B
-        self.ds, self.info = tfds.load(
-            name="bair_robot_pushing_small",
-            data_dir=args.data_dir,
-            split=split,
-            in_memory=False,
-            with_info=True,
-        )
-        self.N = self.info.splits[split].num_examples
-        self.L = math.ceil(self.N / self.B)
-        self.ds = self.ds.shuffle(1024, SEED).batch(self.B)  # TODO: buffersize, interleave()
-        self.ds = self.ds.map(
-            self.func, num_parallel_calls=tf.data.experimental.AUTOTUNE
-        )
-        self.ds = self.ds.prefetch(tf.data.experimental.AUTOTUNE).repeat(args.epochs)
-        self.ds = tfds.as_numpy(self.ds)
-        self.itr = 0
-
-    def func(self, data):
-        x = tf.transpose(data["image_aux1"], [0, 1, 4, 2, 3])
-        a = data["action"]
-        _s = np.random.randint(30 - (self.T+1) + 1)
-        x_0 = x[:, _s]
-        x = x[:, _s+1:_s+1+self.T]
-        a = a[:, _s+1:_s+1+self.T]
-        return {"x_0": x_0, "x": x, "a": a}
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        self.itr += 1
-        batch = next(self.ds)
-        # TODO: use state or not
-        x_0, x, a = batch["x_0"], batch["x"], batch["a"]
-        return torch.from_numpy(x_0), torch.from_numpy(x), torch.from_numpy(a), self.itr
-
-    def __len__(self):
-        return self.L
+        dataset = TowelDataset(data_dir=args.data_dir, mode=mode, T=args.T)
+        super(TowelDataLoader, self).__init__(dataset,
+                                              batch_size=args.B,
+                                              shuffle=True,
+                                              drop_last=True,
+                                              num_workers=4)
