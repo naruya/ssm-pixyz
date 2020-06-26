@@ -16,6 +16,7 @@ def get_args(jupyter=False, args=None):
     parser.add_argument("--a_dim", type=int, default=4)
     parser.add_argument('--gamma', type=float, default=0.)
     parser.add_argument('--min_stddev', type=float, default=0.)
+    parser.add_argument('--gan', action='store_true')
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--data_dir", type=str, default="~/tensorflow_datasets/")
     parser.add_argument("--runs_dir", type=str, default="../runs/")
